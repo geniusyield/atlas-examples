@@ -1,0 +1,121 @@
+cabal-version:      2.2
+name:               betref
+version:            0.1.0.0
+
+common betref-common
+  default-language:   Haskell2010
+  default-extensions:
+    DerivingStrategies
+    DeriveAnyClass
+    DeriveGeneric
+    DataKinds
+    OverloadedStrings
+    TypeApplications
+    RecordWildCards
+    TypeOperators
+    NamedFieldPuns
+    NumericUnderscores
+  ghc-options:
+    -Wall -Wunticked-promoted-constructors -Wunused-packages
+
+library betref-onchain
+  import:           betref-common
+
+  -- so unfoldings are present even when compiled without optmizations
+  ghc-options:
+    -fno-ignore-interface-pragmas -fno-omit-interface-pragmas
+    -Wno-partial-type-signatures
+
+  -- expose all unfoldings, so plutustx compiler can do its job
+  ghc-options:      -fexpose-all-unfoldings -fobject-code -fplugin-opt PlutusTx.Plugin:defer-errors
+  hs-source-dirs:   onchain
+  exposed-modules:
+    BetRef.OnChain.BetRef
+    BetRef.OnChain.BetRef.Compiled
+
+  build-depends:
+    , base
+    , plutus-core
+    , plutus-ledger-api
+    , plutus-tx
+    , plutus-tx-plugin
+
+library betref-server-lib
+  import:           betref-common
+  hs-source-dirs:   server-lib
+  exposed-modules:
+    BetRef.Api.Api
+    BetRef.Api.BetRef
+    BetRef.Api.Context
+    BetRef.Api.Operations
+    BetRef.Api.Tx
+
+  build-depends:
+    , base
+    , aeson
+    , betref-onchain
+    , atlas
+    , swagger2
+    , servant-server
+    , servant-swagger
+    , containers
+    , text
+
+executable betref-server
+  import:           betref-common
+  default-language: Haskell2010
+  hs-source-dirs:   server
+  main-is:          server-main.hs
+  ghc-options:
+    -O2 -threaded -rtsopts -with-rtsopts=-T -fplugin-opt
+    PlutusTx.Plugin:defer-errors
+
+  build-depends:
+    , aeson-pretty
+    , base
+    , bytestring
+    , atlas
+    , betref-server-lib
+    , servant-server
+    , transformers
+    , wai
+    , wai-cors
+    , http-types
+    , warp
+
+test-suite betref-tests
+  import:         betref-common
+  ghc-options:    -threaded -rtsopts
+  type:           exitcode-stdio-1.0
+  main-is:        betref-tests.hs
+  hs-source-dirs: tests
+  other-modules:
+    BetRef.Tests.PlaceBet
+    BetRef.Tests.TakeBetPot
+
+  build-depends:
+    , base
+    , containers
+    , betref-onchain
+    , betref-server-lib
+    , atlas
+    , mtl
+    , plutus-simple-model
+    , tasty
+
+test-suite betref-privnet-tests
+  import:         betref-common
+  type:           exitcode-stdio-1.0
+  ghc-options:    -threaded -rtsopts
+  hs-source-dirs: tests-privnet
+  main-is:        betref-privnet-tests.hs
+  other-modules:
+    BetRef.Tests.Privnet.Tests
+
+  build-depends:
+    , base
+    , betref-onchain
+    , betref-server-lib
+    , atlas
+    , tasty
+    , tasty-hunit
