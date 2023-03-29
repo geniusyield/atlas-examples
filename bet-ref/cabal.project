@@ -93,7 +93,7 @@ source-repository-package
 source-repository-package
   type: git
   location: https://github.com/geniusyield/atlas
-  tag: FIXME0EnterTheLatestTagHere0000000000000
+  tag: 09458858099572bfd00fa9f3c582a68f3d62d9b5
 
 -- Using an in house fork as upstream lacks desired capabilities and uses incompatible dependencies.
 source-repository-package
