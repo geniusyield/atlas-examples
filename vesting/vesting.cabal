@@ -1,0 +1,83 @@
+cabal-version:      2.2
+name:               vesting
+version:            0.1.0.0
+
+common vesting-common
+  default-language:   Haskell2010
+  default-extensions:
+    DerivingStrategies
+    DeriveAnyClass
+    DeriveGeneric
+    DataKinds
+    OverloadedStrings
+    TypeApplications
+    RecordWildCards
+    TypeOperators
+    NamedFieldPuns
+    NumericUnderscores
+  ghc-options:
+    -Wall -Wunticked-promoted-constructors -Wunused-packages
+
+library vesting-onchain
+  import:           vesting-common
+
+  -- so unfoldings are present even when compiled without optmizations
+  ghc-options:
+    -fno-ignore-interface-pragmas -fno-omit-interface-pragmas
+    -Wno-partial-type-signatures
+
+  -- expose all unfoldings, so plutustx compiler can do its job
+  ghc-options:      -fexpose-all-unfoldings -fobject-code -fplugin-opt PlutusTx.Plugin:defer-errors
+  hs-source-dirs:   onchain
+  exposed-modules:
+    Vesting.OnChain.Vesting
+    Vesting.OnChain.Vesting.Compiled
+
+  build-depends:
+    , base
+    , plutus-ledger-api
+    , plutus-tx
+    , plutus-tx-plugin
+
+library vesting-offchain
+  import:           vesting-common
+  hs-source-dirs:   offchain
+  exposed-modules:
+    Vesting.Api
+    Vesting.Script
+    Vesting.Utils
+
+  build-depends:
+    , base
+    , atlas
+    , containers
+    , vesting-onchain
+
+executable place-vesting
+  import:           vesting-common
+  default-language: Haskell2010
+  hs-source-dirs:   app
+  main-is:          place.hs
+  ghc-options:
+    -O2 -threaded -rtsopts -with-rtsopts=-T -fplugin-opt
+    PlutusTx.Plugin:defer-errors
+
+  build-depends:
+    , base
+    , atlas
+    , text
+    , vesting-offchain
+
+executable retrieve-vesting
+  import:           vesting-common
+  default-language: Haskell2010
+  hs-source-dirs:   app
+  main-is:          retrieve.hs
+  ghc-options:
+    -O2 -threaded -rtsopts -with-rtsopts=-T -fplugin-opt
+    PlutusTx.Plugin:defer-errors
+
+  build-depends:
+    , base
+    , atlas
+    , vesting-offchain
