@@ -79,17 +79,6 @@ source-repository-package
   --sha256: sha256-dL+zGbtFQFTsFNAjzYgEKcbJkIP8If74sNCixBJWjp0=
   subdir: ply-core
 
--- Using 0.7.1.0, which is already on hackage; but bumping the index state will break everything.
-source-repository-package
-  type: git
-  location: https://github.com/blockfrost/blockfrost-haskell
-  tag: v0.7.1.0
-  --sha256: sha256-hCT0yp3dnNTm7PRDXqrW9zYyUtALMqQNMxS7IZsNoe4=
-  subdir:
-    blockfrost-api
-    blockfrost-client
-    blockfrost-client-core
-
 source-repository-package
   type: git
   location: https://github.com/geniusyield/atlas
@@ -101,11 +90,6 @@ source-repository-package
   location: https://github.com/geniusyield/plutus-simple-model
   tag: d710c4c5400ff7072fe89c337c1cdd0128dc5d99
   --sha256: sha256-dpTAGN4qg1Fu1LjPIJiyEXlLxcHEC/a4sj1zjEvG/Js=
-
-allow-newer:
-  , cardano-wallet:blockfrost-api
-  , cardano-wallet:blockfrost-client
-  , cardano-wallet:blockfrost-client-core
 
 -- Everything below is essentially copied from cardano-wallet's cabal.project.
 
