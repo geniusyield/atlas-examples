@@ -1,4 +1,3 @@
-bet-ref/dist-newstyle/
-vesting/dist-newstyle/
-vesting/config.json
-vesting/*.skey
+dist-*
+*config.json
+*.skey
