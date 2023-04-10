@@ -10,7 +10,7 @@ import           Test.Tasty.Ingredients           (Ingredient)
 import           GeniusYield.Test.Privnet.Options
 import           GeniusYield.Test.Privnet.Setup
 
-import qualified BetRef.Tests.Privnet.Tests
+import qualified Dex.Tests.Privnet.Tests
 
 ingredients :: [Ingredient]
 ingredients = includingOptions optionDescriptions : defaultIngredients
@@ -20,4 +20,4 @@ main =
   defaultMainWithIngredients ingredients $
   askDbSyncOpts $ \dbSyncOpts ->
   withResource (makeSetup dbSyncOpts) (const mempty) $ \setup ->
-    testGroup "BetRef" [BetRef.Tests.Privnet.Tests.tests setup]
+    testGroup "Dex" [Dex.Tests.Privnet.Tests.tests setup]

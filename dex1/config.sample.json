@@ -1,5 +1,5 @@
 {
-    "coreProvider": { "maestroToken": "<Your-API-Key>" },
+    "coreProvider": { "maestroToken": "BvIFNRyFRhKeUXXx2DFWEwWsXXYzgUJq" },
     "networkId": "testnet-preprod",
     "logging": [{ "type": { "tag": "stderr" }, "severity": "Debug", "verbosity": "V2" }],
     "utxoCacheEnable": false

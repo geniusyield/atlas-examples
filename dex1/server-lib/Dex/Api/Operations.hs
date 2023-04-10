@@ -1,5 +1,6 @@
 module Dex.Api.Operations
   ( mintTestTokens
+  , mintTestTokens'
   ) where
 
 
@@ -24,6 +25,14 @@ mintTestTokens tn amt = do
 
     return (GYToken (mintingPolicyId policy) tn, txSkeleton)
     
+mintTestTokens' :: GYTxMonad m
+               => GYTokenName
+               -> Natural
+               -> m (GYTxSkeleton 'PlutusV2)
+mintTestTokens' tn amt = do
+    -- utxo to base token of.
+    (ass, txSkeleton) <- mintTestTokens tn amt
+    return txSkeleton
 --mintContract :: GYTxQueryMonad m => GYAddress -> GYValue -> m (GYTxSkeleton 'PlutusV2)
 --mintContract ownAddr val = do
 --  pkh <- addressToPubKeyHash' ownAddr

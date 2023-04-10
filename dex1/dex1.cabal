@@ -82,13 +82,15 @@ library dex-server-lib
   import:           dex-common
   hs-source-dirs:   server-lib
   exposed-modules:
+    Dex.Api.Api
+    Dex.Api.Context
+    Dex.Api.Dex
     Dex.Api.Operations
     Dex.Api.Scripts
+    Dex.Api.Tx
 
   build-depends:
     , plutus-ledger-api
-
-  build-depends:
     , base
     , aeson
     , dex-onchain
@@ -119,6 +121,28 @@ library betref-server-lib
     , servant-swagger
     , containers
     , text
+
+executable dex-server
+  import:           dex-common
+  default-language: Haskell2010
+  hs-source-dirs:   server
+  main-is:          dex-server-main.hs
+  ghc-options:
+    -O2 -threaded -rtsopts -with-rtsopts=-T -fplugin-opt
+    PlutusTx.Plugin:defer-errors
+
+  build-depends:
+    , aeson-pretty
+    , base
+    , bytestring
+    , atlas
+    , dex-server-lib
+    , servant-server
+    , transformers
+    , wai
+    , wai-cors
+    , http-types
+    , warp
 
 executable betref-server
   import:           betref-common
@@ -180,6 +204,24 @@ test-suite betref-tests
     , mtl
     , plutus-simple-model
     , tasty
+
+test-suite dex-privnet-tests
+  import:         dex-common
+  type:           exitcode-stdio-1.0
+  ghc-options:    -threaded -rtsopts
+  hs-source-dirs: tests-privnet
+  main-is:        dex-privnet-tests.hs
+  other-modules:
+    Dex.Tests.Privnet.Tests
+
+  build-depends:
+    , base
+    , dex-onchain
+    , dex-server-lib
+    , atlas
+    , tasty
+    , tasty-hunit
+
 
 test-suite betref-privnet-tests
   import:         betref-common
