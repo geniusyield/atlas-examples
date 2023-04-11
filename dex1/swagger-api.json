@@ -1,23 +1,20 @@
 {
     "definitions": {
-        "AddRefInputParams": {
+        "CreateTokensParams": {
             "properties": {
-                "ariBetAnswer": {
-                    "type": "integer"
-                },
-                "ariChangeAddr": {
+                "ctpChangeAddr": {
                     "$ref": "#/definitions/GYAddress"
                 },
-                "ariCollateral": {
+                "ctpCollateral": {
                     "example": "8282582004ffecdf5f3ced5c5c788833415bcbef26e3e21290fcebcf8216327e21569e420082583900e1cbb80db89e292269aeb93ec15eb963dda5176b66949fe1c2a6a38d1b930e9f7add78a174a21000e989ff551366dcd127028cb2aa39f6161a004c4b40",
                     "format": "cbor hex",
                     "pattern": "[0-9a-fA-F]+",
                     "type": "string"
                 },
-                "ariPutAddress": {
-                    "$ref": "#/definitions/GYAddress"
+                "ctpName": {
+                    "$ref": "#/definitions/GYTokenName"
                 },
-                "ariUsedAddrs": {
+                "ctpUsedAddrs": {
                     "items": {
                         "$ref": "#/definitions/GYAddress"
                     },
@@ -25,73 +22,10 @@
                 }
             },
             "required": [
-                "ariUsedAddrs",
-                "ariChangeAddr",
-                "ariCollateral",
-                "ariPutAddress",
-                "ariBetAnswer"
-            ],
-            "type": "object"
-        },
-        "AddRefScriptParams": {
-            "properties": {
-                "arsBetParams": {
-                    "$ref": "#/definitions/BetRefParams"
-                },
-                "arsChangeAddr": {
-                    "$ref": "#/definitions/GYAddress"
-                },
-                "arsCollateral": {
-                    "example": "8282582004ffecdf5f3ced5c5c788833415bcbef26e3e21290fcebcf8216327e21569e420082583900e1cbb80db89e292269aeb93ec15eb963dda5176b66949fe1c2a6a38d1b930e9f7add78a174a21000e989ff551366dcd127028cb2aa39f6161a004c4b40",
-                    "format": "cbor hex",
-                    "pattern": "[0-9a-fA-F]+",
-                    "type": "string"
-                },
-                "arsPutAddress": {
-                    "$ref": "#/definitions/GYAddress"
-                },
-                "arsUsedAddrs": {
-                    "items": {
-                        "$ref": "#/definitions/GYAddress"
-                    },
-                    "type": "array"
-                }
-            },
-            "required": [
-                "arsUsedAddrs",
-                "arsChangeAddr",
-                "arsCollateral",
-                "arsPutAddress",
-                "arsBetParams"
-            ],
-            "type": "object"
-        },
-        "BetRefParams": {
-            "properties": {
-                "brpBetReveal": {
-                    "description": "This is the posix time in ISO8601 format.",
-                    "example": "1970-01-01T00:00:00Z",
-                    "format": "ISO8601",
-                    "type": "string"
-                },
-                "brpBetStep": {
-                    "$ref": "#/definitions/GYValue"
-                },
-                "brpBetUntil": {
-                    "description": "This is the posix time in ISO8601 format.",
-                    "example": "1970-01-01T00:00:00Z",
-                    "format": "ISO8601",
-                    "type": "string"
-                },
-                "brpOracleAddress": {
-                    "$ref": "#/definitions/GYAddress"
-                }
-            },
-            "required": [
-                "brpOracleAddress",
-                "brpBetUntil",
-                "brpBetReveal",
-                "brpBetStep"
+                "ctpUsedAddrs",
+                "ctpChangeAddr",
+                "ctpCollateral",
+                "ctpName"
             ],
             "type": "object"
         },
@@ -103,73 +37,20 @@
             "minLength": 114,
             "type": "string"
         },
+        "GYTokenName": {
+            "description": "This is the name of a token.",
+            "example": "476f6c64",
+            "format": "hex",
+            "maxLength": 64,
+            "pattern": "[0-9a-fA-F]+",
+            "type": "string"
+        },
         "GYTx": {
             "type": "string"
         },
         "GYTxId": {
             "example": "a8d75b90a052302c1232bedd626720966b1697fe38de556c617c340233688935",
             "type": "string"
-        },
-        "GYTxOutRef": {
-            "example": "4293386fef391299c9886dc0ef3e8676cbdbc2c9f2773507f1f838e00043a189#1",
-            "format": "hex",
-            "pattern": "[0-9a-fA-F]{64}#\"d+",
-            "type": "string"
-        },
-        "GYValue": {
-            "additionalProperties": {
-                "type": "integer"
-            },
-            "description": "A multi asset quantity, represented as map where each key represents an asset: policy ID and token name in hex concatenated by a dot.",
-            "example": {
-                "ff80aaaf03a273b8f5c558168dc0e2377eea810badbae6eceefc14ef.474f4c44": 101,
-                "lovelace": 22
-            },
-            "type": "object"
-        },
-        "PlaceBetRefParams": {
-            "properties": {
-                "pbrBetAmt": {
-                    "$ref": "#/definitions/GYValue"
-                },
-                "pbrBetGuess": {
-                    "type": "integer"
-                },
-                "pbrBetParams": {
-                    "$ref": "#/definitions/BetRefParams"
-                },
-                "pbrChangeAddr": {
-                    "$ref": "#/definitions/GYAddress"
-                },
-                "pbrCollateral": {
-                    "example": "8282582004ffecdf5f3ced5c5c788833415bcbef26e3e21290fcebcf8216327e21569e420082583900e1cbb80db89e292269aeb93ec15eb963dda5176b66949fe1c2a6a38d1b930e9f7add78a174a21000e989ff551366dcd127028cb2aa39f6161a004c4b40",
-                    "format": "cbor hex",
-                    "pattern": "[0-9a-fA-F]+",
-                    "type": "string"
-                },
-                "pbrPrevBetRef": {
-                    "$ref": "#/definitions/GYTxOutRef"
-                },
-                "pbrRefScript": {
-                    "$ref": "#/definitions/GYTxOutRef"
-                },
-                "pbrUsedAddrs": {
-                    "items": {
-                        "$ref": "#/definitions/GYAddress"
-                    },
-                    "type": "array"
-                }
-            },
-            "required": [
-                "pbrUsedAddrs",
-                "pbrChangeAddr",
-                "pbrCollateral",
-                "pbrBetParams",
-                "pbrBetGuess",
-                "pbrBetAmt",
-                "pbrRefScript"
-            ],
-            "type": "object"
         },
         "SubmitTxResponse": {
             "properties": {
@@ -183,47 +64,6 @@
             "required": [
                 "submitTxFee",
                 "submitTxId"
-            ],
-            "type": "object"
-        },
-        "TakeBetRefParams": {
-            "properties": {
-                "tbrBetParams": {
-                    "$ref": "#/definitions/BetRefParams"
-                },
-                "tbrChangeAddr": {
-                    "$ref": "#/definitions/GYAddress"
-                },
-                "tbrCollateral": {
-                    "example": "8282582004ffecdf5f3ced5c5c788833415bcbef26e3e21290fcebcf8216327e21569e420082583900e1cbb80db89e292269aeb93ec15eb963dda5176b66949fe1c2a6a38d1b930e9f7add78a174a21000e989ff551366dcd127028cb2aa39f6161a004c4b40",
-                    "format": "cbor hex",
-                    "pattern": "[0-9a-fA-F]+",
-                    "type": "string"
-                },
-                "tbrOracleRefInputRef": {
-                    "$ref": "#/definitions/GYTxOutRef"
-                },
-                "tbrPrevBetRef": {
-                    "$ref": "#/definitions/GYTxOutRef"
-                },
-                "tbrRefScript": {
-                    "$ref": "#/definitions/GYTxOutRef"
-                },
-                "tbrUsedAddrs": {
-                    "items": {
-                        "$ref": "#/definitions/GYAddress"
-                    },
-                    "type": "array"
-                }
-            },
-            "required": [
-                "tbrUsedAddrs",
-                "tbrChangeAddr",
-                "tbrCollateral",
-                "tbrBetParams",
-                "tbrRefScript",
-                "tbrPrevBetRef",
-                "tbrOracleRefInputRef"
             ],
             "type": "object"
         },
@@ -252,7 +92,7 @@
         "version": ""
     },
     "paths": {
-        "/betref/add-ref-input": {
+        "/dex/token": {
             "post": {
                 "consumes": [
                     "application/json;charset=utf-8"
@@ -263,100 +103,7 @@
                         "name": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/AddRefInputParams"
-                        }
-                    }
-                ],
-                "produces": [
-                    "application/json;charset=utf-8"
-                ],
-                "responses": {
-                    "200": {
-                        "description": "",
-                        "schema": {
-                            "$ref": "#/definitions/UnsignedTxResponse"
-                        }
-                    },
-                    "400": {
-                        "description": "Invalid `body`"
-                    }
-                }
-            }
-        },
-        "/betref/add-ref-script": {
-            "post": {
-                "consumes": [
-                    "application/json;charset=utf-8"
-                ],
-                "parameters": [
-                    {
-                        "in": "body",
-                        "name": "body",
-                        "required": true,
-                        "schema": {
-                            "$ref": "#/definitions/AddRefScriptParams"
-                        }
-                    }
-                ],
-                "produces": [
-                    "application/json;charset=utf-8"
-                ],
-                "responses": {
-                    "200": {
-                        "description": "",
-                        "schema": {
-                            "$ref": "#/definitions/UnsignedTxResponse"
-                        }
-                    },
-                    "400": {
-                        "description": "Invalid `body`"
-                    }
-                }
-            }
-        },
-        "/betref/place": {
-            "post": {
-                "consumes": [
-                    "application/json;charset=utf-8"
-                ],
-                "parameters": [
-                    {
-                        "in": "body",
-                        "name": "body",
-                        "required": true,
-                        "schema": {
-                            "$ref": "#/definitions/PlaceBetRefParams"
-                        }
-                    }
-                ],
-                "produces": [
-                    "application/json;charset=utf-8"
-                ],
-                "responses": {
-                    "200": {
-                        "description": "",
-                        "schema": {
-                            "$ref": "#/definitions/UnsignedTxResponse"
-                        }
-                    },
-                    "400": {
-                        "description": "Invalid `body`"
-                    }
-                }
-            }
-        },
-        "/betref/take": {
-            "post": {
-                "consumes": [
-                    "application/json;charset=utf-8"
-                ],
-                "parameters": [
-                    {
-                        "in": "body",
-                        "name": "body",
-                        "required": true,
-                        "schema": {
-                            "$ref": "#/definitions/TakeBetRefParams"
+                            "$ref": "#/definitions/CreateTokensParams"
                         }
                     }
                 ],
