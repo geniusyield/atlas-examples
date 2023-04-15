@@ -11,6 +11,9 @@
                     "pattern": "[0-9a-fA-F]+",
                     "type": "string"
                 },
+                "ctpDatumCount": {
+                    "type": "integer"
+                },
                 "ctpName": {
                     "$ref": "#/definitions/GYTokenName"
                 },
@@ -25,7 +28,8 @@
                 "ctpUsedAddrs",
                 "ctpChangeAddr",
                 "ctpCollateral",
-                "ctpName"
+                "ctpName",
+                "ctpDatumCount"
             ],
             "type": "object"
         },
@@ -51,6 +55,57 @@
         "GYTxId": {
             "example": "a8d75b90a052302c1232bedd626720966b1697fe38de556c617c340233688935",
             "type": "string"
+        },
+        "GYTxOutRef": {
+            "example": "4293386fef391299c9886dc0ef3e8676cbdbc2c9f2773507f1f838e00043a189#1",
+            "format": "hex",
+            "pattern": "[0-9a-fA-F]{64}#\"d+",
+            "type": "string"
+        },
+        "HelloWorldDataResponse": {
+            "properties": {
+                "hwdrMessage": {
+                    "items": {
+                        "items": [
+                            {
+                                "$ref": "#/definitions/GYTxOutRef"
+                            },
+                            {
+                                "items": {
+                                    "type": "integer"
+                                },
+                                "type": "array"
+                            }
+                        ],
+                        "maxItems": 2,
+                        "minItems": 2,
+                        "type": "array"
+                    },
+                    "type": "array"
+                }
+            },
+            "required": [
+                "hwdrMessage"
+            ],
+            "type": "object"
+        },
+        "HelloWorldParams": {
+            "properties": {
+                "hwpAddr": {
+                    "$ref": "#/definitions/GYAddress"
+                },
+                "hwpUsedAddrs": {
+                    "items": {
+                        "$ref": "#/definitions/GYAddress"
+                    },
+                    "type": "array"
+                }
+            },
+            "required": [
+                "hwpUsedAddrs",
+                "hwpAddr"
+            ],
+            "type": "object"
         },
         "SubmitTxResponse": {
             "properties": {
@@ -92,6 +147,37 @@
         "version": ""
     },
     "paths": {
+        "/dex/hello": {
+            "post": {
+                "consumes": [
+                    "application/json;charset=utf-8"
+                ],
+                "parameters": [
+                    {
+                        "in": "body",
+                        "name": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/HelloWorldParams"
+                        }
+                    }
+                ],
+                "produces": [
+                    "application/json;charset=utf-8"
+                ],
+                "responses": {
+                    "200": {
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/HelloWorldDataResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid `body`"
+                    }
+                }
+            }
+        },
         "/dex/token": {
             "post": {
                 "consumes": [

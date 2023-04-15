@@ -21,6 +21,7 @@ data CreateTokensParams = CreateTokensParams
   , ctpChangeAddr :: !GYAddress
   , ctpCollateral :: !GYTxOutRefCbor
   , ctpName :: !GYTokenName
+  , ctpDatumCount :: !Integer
   } deriving (Show, Generic, FromJSON, Swagger.ToSchema)
 
 -- | Return type for our API endpoints defined here.
@@ -28,6 +29,19 @@ data UnsignedTxResponse = UnsignedTxResponse
   { urspTxBodyHex  :: !T.Text           -- ^ Unsigned transaction cbor.
   , urspTxFee      :: !(Maybe Integer)  -- ^ Tx fees.
   , urspUtxoRefIdx :: !(Maybe Word)     -- ^ Some operations might need to show for relevant UTxO generated, this index will let UI know of it. Note that Transaction ID would change after getting signed.
+  } deriving (Show, Generic, FromJSON, ToJSON, Swagger.ToSchema)
+
+data HelloWorldParams = HelloWorldParams
+  { hwpUsedAddrs  :: ![GYAddress]
+  , hwpAddr :: !GYAddress
+  } deriving (Show, Generic, FromJSON, Swagger.ToSchema)
+
+data HelloWorldResponse = HelloWorldResponse
+  { hwrMessage :: ![T.Text]
+  } deriving (Show, Generic, FromJSON, ToJSON, Swagger.ToSchema)
+
+data HelloWorldDataResponse = HelloWorldDataResponse
+  { hwdrMessage :: ![(GYTxOutRef, [Integer])]
   } deriving (Show, Generic, FromJSON, ToJSON, Swagger.ToSchema)
 
 -- | Construct `UnsignedTxResponse` return type for our endpoint given the transaction body & relevant index for UTxO (if such exists).
@@ -42,9 +56,13 @@ type DexApi =
        "token"
     :> ReqBody '[JSON] CreateTokensParams
     :> Post    '[JSON] UnsignedTxResponse
+  :<|> "hello"
+    :> ReqBody '[JSON] HelloWorldParams
+    :> Post    '[JSON] HelloWorldDataResponse
 
 handleDexApi :: Ctx -> ServerT DexApi IO
-handleDexApi ctx =   handleCreateToken ctx
+handleDexApi ctx =   handleCreateDatumToken ctx
+                :<|> handleHello ctx
 
 -- | Handle for place bet operation.
 handleCreateToken :: Ctx -> CreateTokensParams -> IO UnsignedTxResponse
@@ -52,3 +70,20 @@ handleCreateToken ctx CreateTokensParams{..} = do
   txBody <- runTxI ctx ctpUsedAddrs ctpChangeAddr ctpCollateral
               $ mintTestTokens' ctpName 1
   pure $ unSignedTxWithFee txBody Nothing
+
+-- | Handle for place bet operation.
+handleCreateDatumToken :: Ctx -> CreateTokensParams -> IO UnsignedTxResponse
+handleCreateDatumToken ctx CreateTokensParams{..} = do
+  txBody <- runTxI ctx ctpUsedAddrs ctpChangeAddr ctpCollateral
+              $ mintDatumTokens ctpChangeAddr ctpName 1 ctpDatumCount
+  pure $ unSignedTxWithFee txBody Nothing
+
+handleHello :: Ctx -> HelloWorldParams -> IO HelloWorldDataResponse
+handleHello ctx HelloWorldParams{..} = do
+  hwdr <- runQuery ctx $ listsDatum hwpUsedAddrs
+  pure $ HelloWorldDataResponse hwdr
+  {-
+  return HelloWorldDataResponse { 
+    hwdrMessage = [(ref, Script.mtdVals dat) | (ref, dat) <- hwdr]
+  }
+  -}

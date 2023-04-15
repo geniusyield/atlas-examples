@@ -3,9 +3,11 @@
 
 module Dex.OnChain.Dex.Compiled (
     originalTestTokenPolicy,
+    MyTestDatum (..)
 ) where
 
-import           Plutus.V1.Ledger.Api
+import qualified Plutus.V2.Ledger.Api   as V2
+import qualified Plutus.V1.Ledger.Scripts
 
 import qualified PlutusTx
 
@@ -13,10 +15,10 @@ import           Dex.OnChain.Token
 
 originalTestTokenPolicy
     :: Integer          -- ^ count
-    -> TokenName        -- ^ token name (e.g. @GOLD@)
-    -> TxOutRef         -- ^ utxo to base token on
-    -> MintingPolicy
-originalTestTokenPolicy count tn utxo = mkMintingPolicyScript
+    -> V2.TokenName        -- ^ token name (e.g. @GOLD@)
+    -> V2.TxOutRef         -- ^ utxo to base token on
+    -> V2.MintingPolicy
+originalTestTokenPolicy count tn utxo = V2.mkMintingPolicyScript
     $ $$(PlutusTx.compile [|| mkTestTokenPolicy ||])
     `PlutusTx.applyCode`
      PlutusTx.liftCode count

@@ -1,13 +1,23 @@
 {-# LANGUAGE NoImplicitPrelude #-}
 {-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE TemplateHaskell            #-}
 {-# OPTIONS -fno-strictness -fno-spec-constr -fno-specialise #-}
 module Dex.OnChain.Token (
     mkTestTokenPolicy,
+    MyTestDatum (..)
 ) where
 
-import           Plutus.V1.Ledger.Api
+import           Plutus.V2.Ledger.Api
 import           Plutus.V1.Ledger.Value    (flattenValue)
-import           PlutusTx.Prelude
+import qualified PlutusTx
+import           PlutusTx.Prelude          as PlutusTx
+
+
+
+data MyTestDatum = MyTestDatum
+  { mtdVals        :: [Integer]
+  }
+PlutusTx.unstableMakeIsData ''MyTestDatum
 
 {-# INLINABLE mkTestTokenPolicy #-}
 mkTestTokenPolicy :: Integer -> TokenName -> TxOutRef -> BuiltinData -> BuiltinData -> ()

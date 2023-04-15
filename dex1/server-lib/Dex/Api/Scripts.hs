@@ -11,7 +11,7 @@ testTokenPolicy
     :: Integer           -- ^ count
     -> TokenName         -- ^ token name (e.g. @GOLD@)
     -> GYTxOutRef        -- ^ utxo to base token on
-    -> GYMintingPolicy 'PlutusV1
+    -> GYMintingPolicy 'PlutusV2
 testTokenPolicy count tn utxo =
-    mintingPolicyFromPlutus  @'PlutusV1
+    mintingPolicyFromPlutus  @'PlutusV2
         $ originalTestTokenPolicy count tn (txOutRefToPlutus utxo)
