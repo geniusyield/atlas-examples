@@ -66,6 +66,21 @@
             ],
             "type": "object"
         },
+        "AddWitAndSubmitParams": {
+            "properties": {
+                "awasTxUnsigned": {
+                    "$ref": "#/definitions/GYTx"
+                },
+                "awasTxWit": {
+                    "$ref": "#/definitions/GYTxWitness"
+                }
+            },
+            "required": [
+                "awasTxUnsigned",
+                "awasTxWit"
+            ],
+            "type": "object"
+        },
         "BetRefParams": {
             "properties": {
                 "brpBetReveal": {
@@ -114,6 +129,9 @@
             "example": "4293386fef391299c9886dc0ef3e8676cbdbc2c9f2773507f1f838e00043a189#1",
             "format": "hex",
             "pattern": "[0-9a-fA-F]{64}#\"d+",
+            "type": "string"
+        },
+        "GYTxWitness": {
             "type": "string"
         },
         "GYValue": {
@@ -368,6 +386,37 @@
                         "description": "",
                         "schema": {
                             "$ref": "#/definitions/UnsignedTxResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid `body`"
+                    }
+                }
+            }
+        },
+        "/tx/add-wit-and-submit": {
+            "post": {
+                "consumes": [
+                    "application/json;charset=utf-8"
+                ],
+                "parameters": [
+                    {
+                        "in": "body",
+                        "name": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/AddWitAndSubmitParams"
+                        }
+                    }
+                ],
+                "produces": [
+                    "application/json;charset=utf-8"
+                ],
+                "responses": {
+                    "200": {
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/SubmitTxResponse"
                         }
                     },
                     "400": {
