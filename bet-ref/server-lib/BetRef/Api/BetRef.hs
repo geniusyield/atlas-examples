@@ -72,17 +72,17 @@ data AddRefInputParams = AddRefInputParams
 
 -- | Return type for our API endpoints defined here.
 data UnsignedTxResponse = UnsignedTxResponse
-  { urspTxBodyHex  :: !T.Text           -- ^ Unsigned transaction cbor.
-  , urspTxFee      :: !(Maybe Integer)  -- ^ Tx fees.
-  , urspUtxoRefIdx :: !(Maybe Word)     -- ^ Some operations might need to show for relevant UTxO generated, this index will let UI know of it. Note that Transaction ID would change after getting signed.
+  { urspTxBodyHex :: !T.Text              -- ^ Unsigned transaction cbor.
+  , urspTxFee     :: !(Maybe Integer)     -- ^ Tx fees.
+  , urspUtxoRef   :: !(Maybe GYTxOutRef)  -- ^ Some operations might need to show for relevant UTxO generated.
   } deriving (Show, Generic, FromJSON, ToJSON, Swagger.ToSchema)
 
 -- | Construct `UnsignedTxResponse` return type for our endpoint given the transaction body & relevant index for UTxO (if such exists).
-unSignedTxWithFee :: GYTxBody -> Maybe Word -> UnsignedTxResponse
-unSignedTxWithFee txBody mUtxoRefIdx = UnsignedTxResponse
+unSignedTxWithFee :: GYTxBody -> Maybe GYTxOutRef -> UnsignedTxResponse
+unSignedTxWithFee txBody mUtxoRef = UnsignedTxResponse
   { urspTxBodyHex  = T.pack $ txToHex $ unsignedTx txBody
   , urspTxFee      = Just $ txBodyFee txBody
-  , urspUtxoRefIdx = mUtxoRefIdx
+  , urspUtxoRef    = mUtxoRef
   }
 
 -- | Type for our Servant API.
@@ -117,7 +117,7 @@ handlePlaceBet ctx PlaceBetRefParams{..} = do
   placeUtxoRef <- case find (\utxo -> utxoAddress utxo == validatorAddress) $ utxosToList $ txBodyUTxOs txBody of
         Nothing -> fail "Shouldn't happen: No reference for placed bet in body"
         Just utxo -> pure $ utxoRef utxo
-  pure $ unSignedTxWithFee txBody (Just $ snd $ txOutRefToTuple placeUtxoRef)
+  pure $ unSignedTxWithFee txBody $ Just placeUtxoRef
 
 -- | Handle for take bets operation.
 handleTakeBet :: Ctx -> TakeBetRefParams -> IO UnsignedTxResponse
@@ -136,7 +136,7 @@ handleAddRefScript  ctx AddRefScriptParams{..} = do
   outRef <- case Map.lookup (Some (validatorToScript validator)) refs of
                  Nothing  -> fail "Shouldn't happen: No reference for added Script in body"
                  Just ref -> return ref
-  pure $ unSignedTxWithFee txBody (Just $ snd $ txOutRefToTuple outRef)
+  pure $ unSignedTxWithFee txBody $ Just outRef
 
 -- | Handle for adding reference input.
 handleOracleRefInput :: Ctx -> AddRefInputParams  -> IO UnsignedTxResponse
@@ -155,4 +155,4 @@ handleOracleRefInput  ctx AddRefInputParams{..} = do
         ) utxos
   case mRefInputUtxo of
     Nothing               -> fail "Shouldn't happen: Couldn't find the desired UTxO in Tx outputs"
-    Just GYUTxO {utxoRef} -> pure $ unSignedTxWithFee txBody (Just $ snd $ txOutRefToTuple utxoRef)
+    Just GYUTxO {utxoRef} -> pure $ unSignedTxWithFee txBody $ Just utxoRef
