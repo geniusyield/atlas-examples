@@ -9,7 +9,6 @@ import           BetRef.Api.Operations
 import           GeniusYield.Imports
 
 import           BetRef.OnChain.BetRef.Compiled
-import           Control.Concurrent               (threadDelay)
 import           GeniusYield.Test.Privnet.Asserts
 import           GeniusYield.Test.Privnet.Ctx
 import           GeniusYield.Test.Privnet.Setup
@@ -23,7 +22,7 @@ tests setup = testGroup "BetRef"
       -- First step: Construct the parameters and obtain validator from it.
       --
       -- Let's define a new User to represent Oracle (not necessary though)
-      oracleUser <- newTempUserCtx ctx (ctxUserF ctx) (valueFromLovelace 20_000_000)
+      oracleUser <- newTempUserCtx ctx (ctxUserF ctx) (valueFromLovelace 20_000_000) False
       (currentSlot, slotConfig) <- getSlotAndConfig ctx
       let betUntilSlotDelta = 100
           betRevealSlotDelta = 200
@@ -34,27 +33,23 @@ tests setup = testGroup "BetRef"
       validatorAddress <- ctxRunC ctx (ctxUserF ctx) $ betRefAddress brp
       -- Second step: Putting reference script for validator.
       refScript <- addRefScriptCtx ctx (ctxUserF ctx) (validatorToScript validator)
-      threadDelay 1_000_000
       -- Third step: Put some bets.
       --
       -- 1st bet.
-      txBodyLock <- ctxRunI ctx (ctxUserF ctx) $ placeBet refScript brp (OracleAnswerDatum 1) (valueFromLovelace 10_000_000) (userAddr (ctxUserF ctx)) Nothing
+      txBodyLock <- ctxRunI ctx (ctxUser3 ctx) $ placeBet refScript brp (OracleAnswerDatum 1) (valueFromLovelace 10_000_000) (userAddr (ctxUser3 ctx)) Nothing
       lockedORef <- findOutput validatorAddress txBodyLock
-      void $ submitTx ctx (ctxUserF ctx) txBodyLock
-      threadDelay 1_000_000
+      void $ submitTx ctx (ctxUser3 ctx) txBodyLock
 
       --
       -- 2nd bet.
       txBodyLock <- ctxRunI ctx (ctxUser2 ctx) $ placeBet refScript brp (OracleAnswerDatum 2) (valueFromLovelace 20_000_000) (userAddr (ctxUser2 ctx)) (Just lockedORef)
       lockedORef <- findOutput validatorAddress txBodyLock
       void $ submitTx ctx (ctxUser2 ctx) txBodyLock
-      threadDelay 1_000_000
       --
       -- 3rd bet.
-      txBodyLock <- ctxRunI ctx (ctxUserF ctx) $ placeBet refScript brp (OracleAnswerDatum 3) (valueFromLovelace 35_000_000) (userAddr (ctxUserF ctx)) (Just lockedORef)
+      txBodyLock <- ctxRunI ctx (ctxUser3 ctx) $ placeBet refScript brp (OracleAnswerDatum 3) (valueFromLovelace 35_000_000) (userAddr (ctxUser3 ctx)) (Just lockedORef)
       lockedORef <- findOutput validatorAddress txBodyLock
-      void $ submitTx ctx (ctxUserF ctx) txBodyLock
-      threadDelay 1_000_000
+      void $ submitTx ctx (ctxUser3 ctx) txBodyLock
 
       -- Fourth step, get the bets pot.
       --
@@ -63,7 +58,6 @@ tests setup = testGroup "BetRef"
       --
       -- Let's then add for the reference input
       refInputORef <- addRefInputCtx ctx (ctxUserF ctx) True (userAddr oracleUser) (datumFromPlutusData (OracleAnswerDatum 2))
-      threadDelay 1_000_000
       --
       -- Balance of `(ctxUser2 ctx)` before unlocking
       balance <- ctxQueryBalance ctx (ctxUser2 ctx)
@@ -71,7 +65,6 @@ tests setup = testGroup "BetRef"
       -- Unlock operation
       txBodyUnlock <- ctxRunI ctx (ctxUser2 ctx) $ takeBets refScript brp lockedORef (userAddr (ctxUser2 ctx)) refInputORef
       void $ submitTx ctx (ctxUser2 ctx) txBodyUnlock
-      threadDelay 1_000_000
       --
       -- Balance of `(ctxUser2 ctx)` after unlocking
       balance' <- ctxQueryBalance ctx (ctxUser2 ctx)
@@ -87,7 +80,7 @@ tests setup = testGroup "BetRef"
       -- First step: Construct the parameters and obtain validator from it.
       --
       -- Let's define a new User to represent Oracle (not necessary though)
-      oracleUser <- newTempUserCtx ctx (ctxUserF ctx) (valueFromLovelace 20_000_000)
+      oracleUser <- newTempUserCtx ctx (ctxUserF ctx) (valueFromLovelace 20_000_000) False
       (currentSlot, slotConfig) <- getSlotAndConfig ctx
       let betUntilSlotDelta = 100
           betRevealSlotDelta = 200
@@ -98,27 +91,23 @@ tests setup = testGroup "BetRef"
       validatorAddress <- ctxRunC ctx (ctxUserF ctx) $ betRefAddress brp
       -- Second step: Putting reference script for validator.
       refScript <- addRefScriptCtx ctx (ctxUserF ctx) (validatorToScript validator)
-      threadDelay 1_000_000
       -- Third step: Put some bets.
       --
       -- 1st bet.
-      txBodyLock <- ctxRunI ctx (ctxUserF ctx) $ placeBet refScript brp (OracleAnswerDatum 1) (valueFromLovelace 10_000_000) (userAddr (ctxUserF ctx)) Nothing
+      txBodyLock <- ctxRunI ctx (ctxUser3 ctx) $ placeBet refScript brp (OracleAnswerDatum 1) (valueFromLovelace 10_000_000) (userAddr (ctxUser3 ctx)) Nothing
       lockedORef <- findOutput validatorAddress txBodyLock
-      void $ submitTx ctx (ctxUserF ctx) txBodyLock
-      threadDelay 1_000_000
+      void $ submitTx ctx (ctxUser3 ctx) txBodyLock
 
       --
       -- 2nd bet.
       txBodyLock <- ctxRunI ctx (ctxUser2 ctx) $ placeBet refScript brp (OracleAnswerDatum 2) (valueFromLovelace 20_000_000) (userAddr (ctxUser2 ctx)) (Just lockedORef)
       lockedORef <- findOutput validatorAddress txBodyLock
       void $ submitTx ctx (ctxUser2 ctx) txBodyLock
-      threadDelay 1_000_000
       --
       -- 3rd bet.
-      txBodyLock <- ctxRunI ctx (ctxUserF ctx) $ placeBet refScript brp (OracleAnswerDatum 3) (valueFromLovelace 35_000_000) (userAddr (ctxUserF ctx)) (Just lockedORef)
+      txBodyLock <- ctxRunI ctx (ctxUser3 ctx) $ placeBet refScript brp (OracleAnswerDatum 3) (valueFromLovelace 35_000_000) (userAddr (ctxUser3 ctx)) (Just lockedORef)
       lockedORef <- findOutput validatorAddress txBodyLock
-      void $ submitTx ctx (ctxUserF ctx) txBodyLock
-      threadDelay 1_000_000
+      void $ submitTx ctx (ctxUser3 ctx) txBodyLock
 
       -- Fourth step, get the bets pot.
       --
@@ -127,11 +116,10 @@ tests setup = testGroup "BetRef"
       --
       -- Let's then add for the reference input
       refInputORef <- addRefInputCtx ctx (ctxUserF ctx) True (userAddr oracleUser) (datumFromPlutusData (OracleAnswerDatum 2))
-      threadDelay 1_000_000
       --
       -- Unlock operation
       -- But this time by wrong guesser
-      assertThrown isTxBodyErrorAutoBalance $ ctxRunI ctx (ctxUserF ctx) $ takeBets refScript brp lockedORef (userAddr (ctxUserF ctx)) refInputORef
+      assertThrown isTxBodyErrorAutoBalance $ ctxRunI ctx (ctxUser3 ctx) $ takeBets refScript brp lockedORef (userAddr (ctxUser3 ctx)) refInputORef
   ]
 
 getSlotAndConfig :: Ctx -> IO (GYSlot, GYSlotConfig)

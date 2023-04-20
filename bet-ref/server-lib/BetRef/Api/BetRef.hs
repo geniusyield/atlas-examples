@@ -33,7 +33,7 @@ betParamsToScript brp = Script.BetRefParams
 data PlaceBetRefParams = PlaceBetRefParams
   { pbrUsedAddrs  :: ![GYAddress]
   , pbrChangeAddr :: !GYAddress
-  , pbrCollateral :: !GYTxOutRefCbor
+  , pbrCollateral :: !(Maybe GYTxOutRefCbor)
   , pbrBetParams  :: !BetRefParams
   , pbrBetGuess   :: !Integer
   , pbrBetAmt     :: !GYValue
@@ -45,7 +45,7 @@ data PlaceBetRefParams = PlaceBetRefParams
 data TakeBetRefParams = TakeBetRefParams
   { tbrUsedAddrs         :: ![GYAddress]
   , tbrChangeAddr        :: !GYAddress
-  , tbrCollateral        :: !GYTxOutRefCbor
+  , tbrCollateral        :: !(Maybe GYTxOutRefCbor)
   , tbrBetParams         :: !BetRefParams
   , tbrRefScript         :: !GYTxOutRef
   , tbrPrevBetRef        :: !GYTxOutRef
@@ -56,7 +56,7 @@ data TakeBetRefParams = TakeBetRefParams
 data AddRefScriptParams = AddRefScriptParams
   { arsUsedAddrs  :: ![GYAddress]
   , arsChangeAddr :: !GYAddress
-  , arsCollateral :: !GYTxOutRefCbor
+  , arsCollateral :: !(Maybe GYTxOutRefCbor)
   , arsPutAddress :: !GYAddress
   , arsBetParams  :: !BetRefParams
   } deriving (Show, Generic, FromJSON, Swagger.ToSchema)
@@ -65,7 +65,7 @@ data AddRefScriptParams = AddRefScriptParams
 data AddRefInputParams = AddRefInputParams
   { ariUsedAddrs  :: ![GYAddress]
   , ariChangeAddr :: !GYAddress
-  , ariCollateral :: !GYTxOutRefCbor
+  , ariCollateral :: !(Maybe GYTxOutRefCbor)
   , ariPutAddress :: !GYAddress
   , ariBetAnswer  :: !Integer
   } deriving (Show, Generic, FromJSON, Swagger.ToSchema)
