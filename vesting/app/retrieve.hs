@@ -5,7 +5,6 @@ import           GeniusYield.Types
 import           System.Environment    (getArgs)
 import           Text.Printf           (printf)
 import           Vesting.Api
-import           Vesting.Utils         (findCollateral)
 
 -- | Getting path for our core configuration and the beneficiary.
 parseArgs :: IO (FilePath, FilePath)
@@ -27,12 +26,10 @@ main = do
     withCfgProviders coreCfg "retrieve-vesting" $ \providers -> do
         addr <- runGYTxQueryMonadNode nid providers $ vestingAddress beneficiaryPkh
         printf "vesting address: %s\n" $ addressToBech32 addr
-        collateral <- findCollateral nid providers beneficiaryAddr
-        printf "beneficiary collateral: %s\n" collateral
 
         vs <- runGYTxQueryMonadNode nid providers $ availableVestings beneficiaryPkh
         printf "found %d available vesting(s)\n" $ length vs
         unless (null vs) $ do
-            txBody <- runGYTxMonadNode nid providers [beneficiaryAddr] beneficiaryAddr collateral $ retrieveVestings beneficiaryPkh vs
+            txBody <- runGYTxMonadNode nid providers [beneficiaryAddr] beneficiaryAddr Nothing $ retrieveVestings beneficiaryPkh vs
             tid     <- gySubmitTx providers $ signTx txBody [skey]
             printf "submitted tx: %s\n" tid
