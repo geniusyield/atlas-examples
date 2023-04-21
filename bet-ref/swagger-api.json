@@ -27,7 +27,6 @@
             "required": [
                 "ariUsedAddrs",
                 "ariChangeAddr",
-                "ariCollateral",
                 "ariPutAddress",
                 "ariBetAnswer"
             ],
@@ -60,7 +59,6 @@
             "required": [
                 "arsUsedAddrs",
                 "arsChangeAddr",
-                "arsCollateral",
                 "arsPutAddress",
                 "arsBetParams"
             ],
@@ -181,7 +179,6 @@
             "required": [
                 "pbrUsedAddrs",
                 "pbrChangeAddr",
-                "pbrCollateral",
                 "pbrBetParams",
                 "pbrBetGuess",
                 "pbrBetAmt",
@@ -237,7 +234,6 @@
             "required": [
                 "tbrUsedAddrs",
                 "tbrChangeAddr",
-                "tbrCollateral",
                 "tbrBetParams",
                 "tbrRefScript",
                 "tbrPrevBetRef",

@@ -40,11 +40,13 @@ tests setup = testGroup "BetRef"
       lockedORef <- findOutput validatorAddress txBodyLock
       void $ submitTx ctx (ctxUser3 ctx) txBodyLock
 
+      -- Balance of `(ctxUser2 ctx)` before placing the bet
+      balance <- ctxQueryBalance ctx (ctxUser2 ctx)
       --
       -- 2nd bet.
-      txBodyLock <- ctxRunI ctx (ctxUser2 ctx) $ placeBet refScript brp (OracleAnswerDatum 2) (valueFromLovelace 20_000_000) (userAddr (ctxUser2 ctx)) (Just lockedORef)
-      lockedORef <- findOutput validatorAddress txBodyLock
-      void $ submitTx ctx (ctxUser2 ctx) txBodyLock
+      txBodyLockUser2 <- ctxRunI ctx (ctxUser2 ctx) $ placeBet refScript brp (OracleAnswerDatum 2) (valueFromLovelace 20_000_000) (userAddr (ctxUser2 ctx)) (Just lockedORef)
+      lockedORef <- findOutput validatorAddress txBodyLockUser2
+      void $ submitTx ctx (ctxUser2 ctx) txBodyLockUser2
       --
       -- 3rd bet.
       txBodyLock <- ctxRunI ctx (ctxUser3 ctx) $ placeBet refScript brp (OracleAnswerDatum 3) (valueFromLovelace 35_000_000) (userAddr (ctxUser3 ctx)) (Just lockedORef)
@@ -59,21 +61,13 @@ tests setup = testGroup "BetRef"
       -- Let's then add for the reference input
       refInputORef <- addRefInputCtx ctx (ctxUserF ctx) True (userAddr oracleUser) (datumFromPlutusData (OracleAnswerDatum 2))
       --
-      -- Balance of `(ctxUser2 ctx)` before unlocking
-      balance <- ctxQueryBalance ctx (ctxUser2 ctx)
-      --
       -- Unlock operation
       txBodyUnlock <- ctxRunI ctx (ctxUser2 ctx) $ takeBets refScript brp lockedORef (userAddr (ctxUser2 ctx)) refInputORef
       void $ submitTx ctx (ctxUser2 ctx) txBodyUnlock
       --
       -- Balance of `(ctxUser2 ctx)` after unlocking
-      balance' <- ctxQueryBalance ctx (ctxUser2 ctx)
-      let diff = valueMinus balance' balance
-          adaChange = fst $ valueSplitAda diff  -- should be withing [65 ada - max-fee, 65 ada)
-          adaExpectedIncrease = 65_000_000
-          maxFee = 1_000_000
-      assertBool "(ctxUser2 ctx) ada increase must be b/w [adaExpectedIncrease - maxFee, adaExpectedIncrease)"
-           $ adaExpectedIncrease - maxFee <= adaChange && adaChange < adaExpectedIncrease
+      let adaExpectedIncrease = valueFromLovelace 45_000_000
+      assertUserFunds (txBodyFee txBodyUnlock + txBodyFee txBodyLockUser2) ctx (ctxUser2 ctx) $ balance <> adaExpectedIncrease
 
   , testCaseSteps "Unlocking by not the closest guesser should fail" $ \info -> withSetup setup info $ \ctx -> do
 
