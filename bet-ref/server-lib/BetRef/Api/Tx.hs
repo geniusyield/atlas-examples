@@ -7,7 +7,6 @@ import           GeniusYield.Types
 import           BetRef.Api.Context
 import qualified Data.Swagger        as Swagger
 
-
 -- | Return type of API when submitting a transaction.
 data SubmitTxResponse = SubmitTxResponse
                           { submitTxFee :: !Integer
@@ -16,7 +15,7 @@ data SubmitTxResponse = SubmitTxResponse
 
 -- | Input parameters to add for reference script.
 data AddWitAndSubmitParams = AddWitAndSubmitParams
-  { awasTxUnsigned:: !GYTx
+  { awasTxUnsigned :: !GYTx
   , awasTxWit      :: !GYTxWitness
   } deriving (Generic, FromJSON, Swagger.ToSchema)
 
@@ -29,23 +28,13 @@ txBodySubmitTxResponse txBody = SubmitTxResponse
 
 -- | Type for our Servant API.
 type TxAPI =
-       "submit"
-    :> ReqBody '[JSON] GYTx
-    :> Post '[JSON] SubmitTxResponse
-  :<|> "add-wit-and-submit"
+      "add-wit-and-submit"
     :> ReqBody '[JSON] AddWitAndSubmitParams
     :> Post '[JSON] SubmitTxResponse
 
 -- | Serving our API.
 handleTx :: Ctx -> ServerT TxAPI IO
-handleTx ctx =      handleSubmitTx ctx
-               :<|> handleAddWitAndSubmitTx ctx
-
--- | Handle for submit operation.
-handleSubmitTx :: Ctx -> GYTx -> IO SubmitTxResponse
-handleSubmitTx ctx tx = do
-  void (gySubmitTx (ctxProviders ctx) tx)
-  return $ txBodySubmitTxResponse (getTxBody tx)
+handleTx = handleAddWitAndSubmitTx
 
 -- | Handle for adding key witness to the unsigned transaction & then submit it.
 handleAddWitAndSubmitTx :: Ctx -> AddWitAndSubmitParams -> IO SubmitTxResponse

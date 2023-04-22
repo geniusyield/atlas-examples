@@ -418,37 +418,6 @@
                     }
                 }
             }
-        },
-        "/tx/submit": {
-            "post": {
-                "consumes": [
-                    "application/json;charset=utf-8"
-                ],
-                "parameters": [
-                    {
-                        "in": "body",
-                        "name": "body",
-                        "required": true,
-                        "schema": {
-                            "$ref": "#/definitions/GYTx"
-                        }
-                    }
-                ],
-                "produces": [
-                    "application/json;charset=utf-8"
-                ],
-                "responses": {
-                    "200": {
-                        "description": "",
-                        "schema": {
-                            "$ref": "#/definitions/SubmitTxResponse"
-                        }
-                    },
-                    "400": {
-                        "description": "Invalid `body`"
-                    }
-                }
-            }
         }
     },
     "swagger": "2.0"
