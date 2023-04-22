@@ -39,4 +39,10 @@ runTxF :: Traversable t
 runTxF ctx addrs addr collateral skeleton  = do
   let nid       = cfgNetworkId $ ctxCoreCfg ctx
       providers = ctxProviders ctx
-  runGYTxMonadNodeF GYRandomImproveMultiAsset nid providers addrs addr ((\c -> Just (getTxOutRefHex c, True)) =<< collateral) skeleton
+  runGYTxMonadNodeF GYRandomImproveMultiAsset nid providers addrs addr
+    (collateral >>=
+      (\c -> Just (getTxOutRefHex c,
+                   True  -- Make this as `False` to not do 5-ada-only check for value in this given UTxO to be used as collateral.
+                  )
+      )
+    ) skeleton
