@@ -15,6 +15,13 @@ common dex-common
     TypeOperators
     NamedFieldPuns
     NumericUnderscores
+    StandaloneDeriving
+    ScopedTypeVariables
+    DeriveFoldable
+    DeriveFunctor
+    DeriveLift
+    DeriveTraversable
+    GeneralizedNewtypeDeriving
   ghc-options:
     -Wall -Wunticked-promoted-constructors -Wunused-packages
 
@@ -48,13 +55,25 @@ library dex-onchain
   exposed-modules:
     Dex.OnChain.Token
     Dex.OnChain.Dex.Compiled
+    Dex.OnChain.Uniswap.OnChain
+    Dex.OnChain.Uniswap.Pool
+    Dex.OnChain.Uniswap.Types
+    Dex.OnChain.Uniswap.Uniswap.Compiled
 
   build-depends:
     , base
+    , aeson
+    , openapi3
     , plutus-core
     , plutus-ledger-api
     , plutus-tx
     , plutus-tx-plugin
+    , lens
+    , serialise
+    , bytestring
+    , hashable
+    , containers
+    , semigroups
 
 library betref-onchain
   import:           betref-common

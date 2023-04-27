@@ -3,7 +3,9 @@
 
 module Dex.OnChain.Dex.Compiled (
     originalTestTokenPolicy,
-    MyTestDatum (..)
+    MyTestDatum (..),
+    mkCoin,
+    mkCoin',
 ) where
 
 import qualified Plutus.V2.Ledger.Api   as V2

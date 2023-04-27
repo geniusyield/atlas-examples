@@ -41,6 +41,24 @@
             "minLength": 114,
             "type": "string"
         },
+        "GYAssetClass": {
+            "description": "This is an asset class, i.e. either lovelace or some other token with its minting policy and token name.",
+            "example": "ff80aaaf03a273b8f5c558168dc0e2377eea810badbae6eceefc14ef.GOLD",
+            "maxProperties": 1,
+            "minProperties": 1,
+            "properties": {
+                "GYLovelace": {
+                    "example": [],
+                    "items": {},
+                    "maxItems": 0,
+                    "type": "array"
+                },
+                "GYToken": {
+                    "type": "string"
+                }
+            },
+            "type": "string"
+        },
         "GYTokenName": {
             "description": "This is the name of a token.",
             "example": "476f6c64",
@@ -61,6 +79,31 @@
             "format": "hex",
             "pattern": "[0-9a-fA-F]{64}#\"d+",
             "type": "string"
+        },
+        "GeneralParams": {
+            "properties": {
+                "gpChangeAddr": {
+                    "$ref": "#/definitions/GYAddress"
+                },
+                "gpCollateral": {
+                    "example": "8282582004ffecdf5f3ced5c5c788833415bcbef26e3e21290fcebcf8216327e21569e420082583900e1cbb80db89e292269aeb93ec15eb963dda5176b66949fe1c2a6a38d1b930e9f7add78a174a21000e989ff551366dcd127028cb2aa39f6161a004c4b40",
+                    "format": "cbor hex",
+                    "pattern": "[0-9a-fA-F]+",
+                    "type": "string"
+                },
+                "gpUsedAddrs": {
+                    "items": {
+                        "$ref": "#/definitions/GYAddress"
+                    },
+                    "type": "array"
+                }
+            },
+            "required": [
+                "gpUsedAddrs",
+                "gpChangeAddr",
+                "gpCollateral"
+            ],
+            "type": "object"
         },
         "HelloWorldDataResponse": {
             "properties": {
@@ -107,6 +150,62 @@
             ],
             "type": "object"
         },
+        "StartFactoryParams": {
+            "properties": {
+                "spfAssetClass": {
+                    "$ref": "#/definitions/GYAssetClass"
+                },
+                "spfGPParams": {
+                    "$ref": "#/definitions/GeneralParams"
+                }
+            },
+            "required": [
+                "spfGPParams",
+                "spfAssetClass"
+            ],
+            "type": "object"
+        },
+        "StartFactoryResponse": {
+            "properties": {
+                "srfUnsignedTxResponse": {
+                    "$ref": "#/definitions/UnsignedTxResponse"
+                }
+            },
+            "required": [
+                "srfUnsignedTxResponse"
+            ],
+            "type": "object"
+        },
+        "StartParams": {
+            "properties": {
+                "spGPParams": {
+                    "$ref": "#/definitions/GeneralParams"
+                },
+                "spTokenName": {
+                    "$ref": "#/definitions/GYTokenName"
+                }
+            },
+            "required": [
+                "spGPParams",
+                "spTokenName"
+            ],
+            "type": "object"
+        },
+        "StartResponse": {
+            "properties": {
+                "srAssetClass": {
+                    "$ref": "#/definitions/GYAssetClass"
+                },
+                "srUnsignedTxResponse": {
+                    "$ref": "#/definitions/UnsignedTxResponse"
+                }
+            },
+            "required": [
+                "srAssetClass",
+                "srUnsignedTxResponse"
+            ],
+            "type": "object"
+        },
         "SubmitTxResponse": {
             "properties": {
                 "submitTxFee": {
@@ -147,6 +246,37 @@
         "version": ""
     },
     "paths": {
+        "/dex/factory": {
+            "post": {
+                "consumes": [
+                    "application/json;charset=utf-8"
+                ],
+                "parameters": [
+                    {
+                        "in": "body",
+                        "name": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/StartFactoryParams"
+                        }
+                    }
+                ],
+                "produces": [
+                    "application/json;charset=utf-8"
+                ],
+                "responses": {
+                    "200": {
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/StartFactoryResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid `body`"
+                    }
+                }
+            }
+        },
         "/dex/hello": {
             "post": {
                 "consumes": [
@@ -170,6 +300,37 @@
                         "description": "",
                         "schema": {
                             "$ref": "#/definitions/HelloWorldDataResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid `body`"
+                    }
+                }
+            }
+        },
+        "/dex/start": {
+            "post": {
+                "consumes": [
+                    "application/json;charset=utf-8"
+                ],
+                "parameters": [
+                    {
+                        "in": "body",
+                        "name": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/StartParams"
+                        }
+                    }
+                ],
+                "produces": [
+                    "application/json;charset=utf-8"
+                ],
+                "responses": {
+                    "200": {
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/StartResponse"
                         }
                     },
                     "400": {

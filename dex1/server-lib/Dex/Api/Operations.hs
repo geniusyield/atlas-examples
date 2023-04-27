@@ -6,6 +6,7 @@ module Dex.Api.Operations
   , helloChecks
   , mintDatumTokens
   , listsDatum
+  , createFactory
   ) where
 
 
@@ -16,8 +17,31 @@ import           GeniusYield.Types.UTxO (GYUTxOs)
 import Dex.Api.Scripts
 import qualified Data.Map.Strict       as Map
 import           Dex.OnChain.Dex.Compiled
+import           Dex.OnChain.Uniswap.Uniswap.Compiled
 import Data.Data (typeOf)
 import Plutus.V1.Ledger.Api (POSIXTime)
+
+uniswapValidator' :: Uniswap -> Coin PoolState -> GYValidator 'PlutusV2
+uniswapValidator' us c = validatorFromPlutus $ uniswapValidator us c
+
+uniswapAddress :: (HasCallStack, GYTxQueryMonad m) => Uniswap -> Coin PoolState -> m GYAddress
+uniswapAddress us c = scriptAddress $ uniswapValidator' us c
+
+createFactory :: GYTxMonad m
+               => Uniswap -> Coin PoolState
+               -> m (GYTxSkeleton 'PlutusV2)
+createFactory us c = do
+    scriptAddr <- uniswapAddress us c
+    unitVal <- valueFromPlutus' $ unitValue c
+    let 
+        txSkeleton = mustHaveOutput (GYTxOut
+                    { gyTxOutAddress = scriptAddr
+                    , gyTxOutValue = unitVal
+                    --, gyTxOutDatum = Nothing
+                    , gyTxOutDatum = Just (datumFromPlutusData (Factory []), GYTxOutUseInlineDatum)
+                    , gyTxOutRefS    = Nothing
+                    })
+    return txSkeleton
 
 mintTestTokens :: GYTxMonad m
                => GYTokenName
@@ -75,13 +99,13 @@ helloChecks addr = do
     return utxos
 
 listsDatum :: GYTxQueryMonad m => [GYAddress] -> m [(GYTxOutRef, [Integer])]
-listsDatum addr = do
-    gyLogInfo' "" $ printf "listsDatum 1 %s" (show ("start"))
+listsDatum addrs = do
+    gyLogInfo' "" $ printf "listsDatum 1 %s" (show addrs)
     slot   <- currentSlot
     gyLogInfo' "" $ printf "listsDatum 2 %s" (show (slot))
     now    <- slotToBeginTime slot
     gyLogInfo' "" $ printf "listsDatum 3 %s" (show (now))
-    utxos  <- utxosAtAddresses addr
+    utxos  <- utxosAtAddresses addrs
     gyLogInfo' "" $ printf "listsDatum 4 %s" (show (utxos))
     let utxos2 = utxos -- filterUTxOs (\u@(GYUTxO ref a v mh ms) -> checkDatumX mh) utxos
     gyLogInfo' "" $ printf "listsDatum 5 %s" (show (utxos2))

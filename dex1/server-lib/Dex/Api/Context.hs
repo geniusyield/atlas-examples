@@ -52,6 +52,20 @@ runTxWithStrategyF cstrat ctx addrs addr collateral skeleton  = do
       providers = ctxProviders ctx
   runGYTxMonadNodeF cstrat nid providers addrs addr (getTxOutRefHex collateral) skeleton
 
+
+runTxI'' :: Traversable t
+                   => Ctx
+                   -> [GYAddress]
+                   -> GYAddress
+                   -> GYTxOutRefCbor
+                   -> GYTxMonadNode (t (GYTxSkeleton v))
+                   -> IO (t GYTxBody)
+runTxI'' ctx addrs addr collateral skeleton  = do
+  let nid       = cfgNetworkId $ ctxCoreCfg ctx
+      providers = ctxProviders ctx
+  runGYTxMonadNodeF GYRandomImproveMultiAsset nid providers addrs addr (getTxOutRefHex collateral) skeleton
+
+
 {-
 
 

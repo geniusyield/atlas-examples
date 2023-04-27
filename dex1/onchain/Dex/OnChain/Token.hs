@@ -4,14 +4,16 @@
 {-# OPTIONS -fno-strictness -fno-spec-constr -fno-specialise #-}
 module Dex.OnChain.Token (
     mkTestTokenPolicy,
-    MyTestDatum (..)
+    MyTestDatum (..),
+    mkCoin,
+    mkCoin',
 ) where
 
 import           Plutus.V2.Ledger.Api
 import           Plutus.V1.Ledger.Value    (flattenValue)
 import qualified PlutusTx
 import           PlutusTx.Prelude          as PlutusTx
-
+import Dex.OnChain.Uniswap.Types
 
 
 data MyTestDatum = MyTestDatum
