@@ -46,11 +46,16 @@ data GeneralParams = GeneralParams
 data StartParams = StartParams
   { spGPParams  :: !GeneralParams
   , spTokenName :: !GYTokenName
+  , spAmount    :: !Natural
   } deriving (Show, Generic, FromJSON, Swagger.ToSchema)
 
 data StartFactoryParams = StartFactoryParams
   { spfGPParams  :: !GeneralParams
   , spfAssetClass :: !GYAssetClass
+  } deriving (Show, Generic, FromJSON, Swagger.ToSchema)
+
+data ListFactoryParams = ListFactoryParams
+  { lfAssetClass :: !GYAssetClass
   } deriving (Show, Generic, FromJSON, Swagger.ToSchema)
 
 data StartResponse = StartResponse
@@ -60,6 +65,10 @@ data StartResponse = StartResponse
 
 data StartFactoryResponse = StartFactoryResponse
   { srfUnsignedTxResponse :: !UnsignedTxResponse
+  } deriving (Show, Generic, FromJSON, ToJSON, Swagger.ToSchema)
+
+data ListFactoryResponse = ListFactoryResponse
+  { lfMessage :: ![(GYTxOutRef, String)]
   } deriving (Show, Generic, FromJSON, ToJSON, Swagger.ToSchema)
 
 data HelloWorldResponse = HelloWorldResponse
@@ -79,29 +88,33 @@ unSignedTxWithFee txBody mUtxoRefIdx = UnsignedTxResponse
   }
 
 type DexApi =
-       "start"
+       "token" :> "create"
     :> ReqBody '[JSON] StartParams
     :> Post    '[JSON] StartResponse
-  :<|> "factory"
+  :<|> "factory" :> "create"
     :> ReqBody '[JSON] StartFactoryParams
     :> Post    '[JSON] StartFactoryResponse
-  :<|> "token"
+  :<|> "factory" :> "list"
+    :> ReqBody '[JSON] ListFactoryParams
+    :> Post    '[JSON] ListFactoryResponse
+  :<|> "token" :> "createDatumToken"
     :> ReqBody '[JSON] CreateTokensParams
     :> Post    '[JSON] UnsignedTxResponse
-  :<|> "hello"
+  :<|> "token" :> "listDatum"
     :> ReqBody '[JSON] HelloWorldParams
     :> Post    '[JSON] HelloWorldDataResponse
 
 handleDexApi :: Ctx -> ServerT DexApi IO
 handleDexApi ctx =   handleStart ctx
                 :<|> handleFactory ctx
+                :<|> handleListFactory ctx
                 :<|> handleCreateDatumToken ctx
                 :<|> handleHello ctx
 
 handleStart :: Ctx -> StartParams -> IO StartResponse
 handleStart ctx StartParams{..} = do
   (ac, txBody) <- runTxI'' ctx (gpUsedAddrs spGPParams) (gpChangeAddr spGPParams) (gpCollateral spGPParams)
-              $ mintTestTokens spTokenName 1
+              $ mintTestTokens spTokenName spAmount
   pure $ StartResponse ac (unSignedTxWithFee txBody Nothing)
 
 
@@ -116,6 +129,14 @@ handleFactory ctx StartFactoryParams{..} = do
   txBody <- runTxI ctx (gpUsedAddrs spfGPParams) (gpChangeAddr spfGPParams) (gpCollateral spfGPParams)
               $ createFactory us c
   pure $ StartFactoryResponse (unSignedTxWithFee txBody Nothing) 
+
+handleListFactory :: Ctx -> ListFactoryParams -> IO ListFactoryResponse
+handleListFactory ctx ListFactoryParams{..} = do
+  let c    = Script.mkCoin' $ assetClassToPlutus lfAssetClass
+      us   = uniswap lfAssetClass
+  lfr <- runQuery ctx $ listFactory us c
+  pure $ ListFactoryResponse lfr
+
 
 
 -- | Handle for place bet operation.

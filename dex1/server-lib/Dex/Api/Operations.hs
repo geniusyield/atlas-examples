@@ -7,6 +7,9 @@ module Dex.Api.Operations
   , mintDatumTokens
   , listsDatum
   , createFactory
+  , listFactory
+  , listFactory'
+  , UniswapDatum(..)
   ) where
 
 
@@ -42,6 +45,52 @@ createFactory us c = do
                     , gyTxOutRefS    = Nothing
                     })
     return txSkeleton
+
+listFactory :: GYTxQueryMonad m 
+               => Uniswap -> Coin PoolState
+               -> m [(GYTxOutRef, String)]
+listFactory us c = do
+    addr <- uniswapAddress us c
+    gyLogInfo' "" $ printf "listFactory 1 addr %s" (show addr)
+    utxos  <- utxosAtAddress addr
+    gyLogInfo' "" $ printf "listFactory 2 utxos %s" (show (utxos))
+    let utxos2 = utxos -- filterUTxOs (\u@(GYUTxO ref a v mh ms) -> checkDatumX mh) utxos
+    utxos' <- utxosDatums utxos2
+    -- gyLogInfo' "" $ printf "listsDatum 6 %s" (show (utxos'))
+    return
+        [ (oref, dat')
+        | (oref, (_, val, dat)) <- Map.toList utxos'
+        , isUnity (valueToPlutus val) c
+        , let dat' = printf "%s" (show (dat :: UniswapDatum))
+        --, let dat' = dat
+        ]
+
+listFactory' :: GYTxQueryMonad m 
+               => Uniswap -> Coin PoolState
+               -> m [(GYTxOutRef, String)]
+listFactory' us c = do
+    addr <- uniswapAddress us c
+    gyLogInfo' "" $ printf "listFactory 1 addr %s" (show addr)
+    utxos  <- utxosAtAddress addr
+    gyLogInfo' "" $ printf "listFactory 2 utxos %s" (show (utxos))
+    let utxos2 = utxos -- filterUTxOs (\u@(GYUTxO ref a v mh ms) -> checkDatumX mh) utxos
+    utxos' <- utxosDatums utxos2
+    -- gyLogInfo' "" $ printf "listsDatum 6 %s" (show (utxos'))
+    return
+        [ (oref, dat')
+        | (oref, (_, val, dat)) <- Map.toList utxos'
+        , isUnity (valueToPlutus val) c
+        , let dat' = toStringX dat
+        --, let dat' = dat
+        ]
+
+toStringX :: UniswapDatum -> String
+toStringX dat = do
+    case dat of
+        Factory lps -> printf "%s" (show (dat :: UniswapDatum))
+        Pool l a -> printf "%s" (show (dat :: UniswapDatum))
+
+
 
 mintTestTokens :: GYTxMonad m
                => GYTokenName

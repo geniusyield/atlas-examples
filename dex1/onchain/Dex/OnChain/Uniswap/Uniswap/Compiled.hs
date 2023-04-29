@@ -6,8 +6,9 @@ module Dex.OnChain.Uniswap.Uniswap.Compiled (
     Uniswap,
     Coin,
     PoolState,
-    UniswapDatum(..),
+    UniswapDatum (..),
     unitValue,
+    isUnity,
 ) where
 
 import qualified Plutus.V2.Ledger.Api as V2  
