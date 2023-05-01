@@ -45,7 +45,6 @@ library vesting-offchain
   exposed-modules:
     Vesting.Api
     Vesting.Script
-    Vesting.Utils
 
   build-depends:
     , base

@@ -6,7 +6,6 @@ import           System.Environment    (getArgs)
 import           Text.Printf           (printf)
 import           Text.Read             (readMaybe)
 import           Vesting.Api
-import           Vesting.Utils         (findCollateral)
 
 -- | Getting path for our core configuration and the beneficiary.
 parseArgs :: IO (FilePath, FilePath, GYPubKeyHash, GYTime, Natural)
@@ -38,10 +37,8 @@ main = do
     withCfgProviders coreCfg "place-vesting" $ \providers -> do
         addr <- runGYTxQueryMonadNode nid providers $ vestingAddress beneficiary
         printf "vesting address: %s\n" $ addressToBech32 addr
-        collateral <- findCollateral nid providers sender
-        printf "sender collateral: %s\n" collateral
 
-        txBody <- runGYTxMonadNode nid providers [sender] sender collateral $ placeVesting
+        txBody <- runGYTxMonadNode nid providers [sender] sender Nothing $ placeVesting
             beneficiary
             deadline
             (valueFromLovelace $ toInteger lovelace)

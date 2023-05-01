@@ -27,7 +27,6 @@
             "required": [
                 "ariUsedAddrs",
                 "ariChangeAddr",
-                "ariCollateral",
                 "ariPutAddress",
                 "ariBetAnswer"
             ],
@@ -60,9 +59,23 @@
             "required": [
                 "arsUsedAddrs",
                 "arsChangeAddr",
-                "arsCollateral",
                 "arsPutAddress",
                 "arsBetParams"
+            ],
+            "type": "object"
+        },
+        "AddWitAndSubmitParams": {
+            "properties": {
+                "awasTxUnsigned": {
+                    "$ref": "#/definitions/GYTx"
+                },
+                "awasTxWit": {
+                    "$ref": "#/definitions/GYTxWitness"
+                }
+            },
+            "required": [
+                "awasTxUnsigned",
+                "awasTxWit"
             ],
             "type": "object"
         },
@@ -116,6 +129,9 @@
             "pattern": "[0-9a-fA-F]{64}#\"d+",
             "type": "string"
         },
+        "GYTxWitness": {
+            "type": "string"
+        },
         "GYValue": {
             "additionalProperties": {
                 "type": "integer"
@@ -163,7 +179,6 @@
             "required": [
                 "pbrUsedAddrs",
                 "pbrChangeAddr",
-                "pbrCollateral",
                 "pbrBetParams",
                 "pbrBetGuess",
                 "pbrBetAmt",
@@ -219,7 +234,6 @@
             "required": [
                 "tbrUsedAddrs",
                 "tbrChangeAddr",
-                "tbrCollateral",
                 "tbrBetParams",
                 "tbrRefScript",
                 "tbrPrevBetRef",
@@ -235,10 +249,8 @@
                 "urspTxFee": {
                     "type": "integer"
                 },
-                "urspUtxoRefIdx": {
-                    "maximum": 1.8446744073709551615e19,
-                    "minimum": 0,
-                    "type": "integer"
+                "urspUtxoRef": {
+                    "$ref": "#/definitions/GYTxOutRef"
                 }
             },
             "required": [
@@ -376,7 +388,7 @@
                 }
             }
         },
-        "/tx/submit": {
+        "/tx/add-wit-and-submit": {
             "post": {
                 "consumes": [
                     "application/json;charset=utf-8"
@@ -387,7 +399,7 @@
                         "name": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/GYTx"
+                            "$ref": "#/definitions/AddWitAndSubmitParams"
                         }
                     }
                 ],
