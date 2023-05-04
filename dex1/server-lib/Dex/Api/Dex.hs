@@ -37,6 +37,10 @@ data HelloWorldParams = HelloWorldParams
   , hwpAddr :: !GYAddress
   } deriving (Show, Generic, FromJSON, Swagger.ToSchema)
 
+data ListBalanceParams = ListBalanceParams
+  { lbpUsedAddrs  :: ![GYAddress]
+  } deriving (Show, Generic, FromJSON, Swagger.ToSchema)
+
 data GeneralParams = GeneralParams
   { gpUsedAddrs  :: ![GYAddress]
   , gpChangeAddr :: !GYAddress
@@ -63,6 +67,20 @@ data StartResponse = StartResponse
   , srUnsignedTxResponse :: !UnsignedTxResponse
   } deriving (Show, Generic, FromJSON, ToJSON, Swagger.ToSchema)
 
+data CreatePoolParams = CreatePoolParams
+  { cppGPParams  :: !GeneralParams
+  , cppFactoryAssetClass  :: !GYAssetClass
+  , cppTokenAAssetClass :: !GYAssetClass
+  , cppTokenAAmount :: !Integer
+  , cppTokenBAssetClass :: !GYAssetClass
+  , cppTokenBAmount :: !Integer
+  } deriving (Show, Generic, FromJSON, Swagger.ToSchema)
+
+data CreatePoolResponse = CreatePoolResponse
+  { 
+    -- cprUnsignedTxResponse :: !UnsignedTxResponse
+  } deriving (Show, Generic, FromJSON, ToJSON, Swagger.ToSchema)
+
 data StartFactoryResponse = StartFactoryResponse
   { srfUnsignedTxResponse :: !UnsignedTxResponse
   } deriving (Show, Generic, FromJSON, ToJSON, Swagger.ToSchema)
@@ -73,6 +91,10 @@ data ListFactoryResponse = ListFactoryResponse
 
 data HelloWorldResponse = HelloWorldResponse
   { hwrMessage :: ![T.Text]
+  } deriving (Show, Generic, FromJSON, ToJSON, Swagger.ToSchema)
+
+data ListBalanceResponse = ListBalanceResponse
+  { lbrValue :: !GYValue
   } deriving (Show, Generic, FromJSON, ToJSON, Swagger.ToSchema)
 
 data HelloWorldDataResponse = HelloWorldDataResponse
@@ -97,6 +119,12 @@ type DexApi =
   :<|> "factory" :> "list"
     :> ReqBody '[JSON] ListFactoryParams
     :> Post    '[JSON] ListFactoryResponse
+  :<|> "pool" :> "create"
+    :> ReqBody '[JSON] CreatePoolParams
+    :> Post    '[JSON] CreatePoolResponse
+  :<|> "wallet" :> "balance"
+    :> ReqBody '[JSON] ListBalanceParams
+    :> Post    '[JSON] ListBalanceResponse
   :<|> "token" :> "createDatumToken"
     :> ReqBody '[JSON] CreateTokensParams
     :> Post    '[JSON] UnsignedTxResponse
@@ -108,6 +136,8 @@ handleDexApi :: Ctx -> ServerT DexApi IO
 handleDexApi ctx =   handleStart ctx
                 :<|> handleFactory ctx
                 :<|> handleListFactory ctx
+                :<|> handleCreatePool ctx
+                :<|> handleListBalance ctx
                 :<|> handleCreateDatumToken ctx
                 :<|> handleHello ctx
 
@@ -123,21 +153,33 @@ uniswap ac = Script'.Uniswap $ Script.mkCoin' (assetClassToPlutus ac)
 
 handleFactory :: Ctx -> StartFactoryParams -> IO StartFactoryResponse
 handleFactory ctx StartFactoryParams{..} = do
-  let c    = Script.mkCoin' $ assetClassToPlutus spfAssetClass
-      us   = uniswap spfAssetClass
+  let us   = uniswap spfAssetClass
       -- inst = uniswapInstance us  
   txBody <- runTxI ctx (gpUsedAddrs spfGPParams) (gpChangeAddr spfGPParams) (gpCollateral spfGPParams)
-              $ createFactory us c
+              $ createFactory us
   pure $ StartFactoryResponse (unSignedTxWithFee txBody Nothing) 
+
+handleCreatePool :: Ctx -> CreatePoolParams -> IO CreatePoolResponse
+handleCreatePool ctx CreatePoolParams{..} = do
+  let us   = uniswap cppFactoryAssetClass
+      tokenA = valueSingleton cppTokenAAssetClass cppTokenAAmount
+      tokenB = valueSingleton cppTokenBAssetClass cppTokenBAmount
+  -- fail $ printf "tokenA %s" tokenA
+  txBody <- runTxI ctx (gpUsedAddrs cppGPParams) (gpChangeAddr cppGPParams) (gpCollateral cppGPParams)
+              $ createPool us tokenA tokenB      
+  pure $ CreatePoolResponse 
 
 handleListFactory :: Ctx -> ListFactoryParams -> IO ListFactoryResponse
 handleListFactory ctx ListFactoryParams{..} = do
-  let c    = Script.mkCoin' $ assetClassToPlutus lfAssetClass
-      us   = uniswap lfAssetClass
-  lfr <- runQuery ctx $ listFactory us c
+  let us   = uniswap lfAssetClass
+  lfr <- runQuery ctx $ listFactory us 
   pure $ ListFactoryResponse lfr
 
 
+handleListBalance :: Ctx -> ListBalanceParams -> IO ListBalanceResponse
+handleListBalance ctx ListBalanceParams{..} = do
+  val <- runQuery ctx $ listBalance' lbpUsedAddrs
+  pure $ ListBalanceResponse val
 
 -- | Handle for place bet operation.
 handleCreateToken :: Ctx -> CreateTokensParams -> IO UnsignedTxResponse

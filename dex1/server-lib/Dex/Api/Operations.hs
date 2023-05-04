@@ -1,4 +1,6 @@
 {-# LANGUAGE TemplateHaskell            #-}
+{-# LANGUAGE LambdaCase #-}
+{-# LANGUAGE FlexibleContexts #-}
 
 module Dex.Api.Operations
   ( mintTestTokens
@@ -10,6 +12,8 @@ module Dex.Api.Operations
   , listFactory
   , listFactory'
   , UniswapDatum(..)
+  , listBalance'
+  , createPool
   ) where
 
 
@@ -20,21 +24,42 @@ import           GeniusYield.Types.UTxO (GYUTxOs)
 import Dex.Api.Scripts
 import qualified Data.Map.Strict       as Map
 import           Dex.OnChain.Dex.Compiled
-import           Dex.OnChain.Uniswap.Uniswap.Compiled
+import Dex.OnChain.Uniswap.Uniswap.Compiled
+    ( isUnity,
+      unitValue,
+      Coin(..),
+      PoolState,
+      UniswapDatum(..),
+      uniswapValidator,
+      Uniswap(..), LiquidityPool(..), Amount, Liquidity )
+import qualified Dex.OnChain.Uniswap.Uniswap.Compiled as LQS
 import Data.Data (typeOf)
-import Plutus.V1.Ledger.Api (POSIXTime)
+import Plutus.V1.Ledger.Api (POSIXTime, CurrencySymbol, TxOutRef)
 
-uniswapValidator' :: Uniswap -> Coin PoolState -> GYValidator 'PlutusV2
-uniswapValidator' us c = validatorFromPlutus $ uniswapValidator us c
+poolStateTokenName :: GYTokenName
+poolStateTokenName = "Pool State"
 
-uniswapAddress :: (HasCallStack, GYTxQueryMonad m) => Uniswap -> Coin PoolState -> m GYAddress
-uniswapAddress us c = scriptAddress $ uniswapValidator' us c
+uniswapValidator' :: Uniswap -> GYValidator 'PlutusV2
+uniswapValidator' us = validatorFromPlutus $ uniswapValidator us (poolStateCoin us)
+
+uniswapAddress :: (HasCallStack, GYTxQueryMonad m) => Uniswap -> m GYAddress
+uniswapAddress us = scriptAddress $ uniswapValidator' us 
+
+liquidityCurrency :: Uniswap -> CurrencySymbol
+liquidityCurrency us = mintingPolicyCurrencySymbol $ liquidityPolicy' us poolStateTokenName
+
+poolStateCoin :: Uniswap -> Coin PoolState
+poolStateCoin us = mkCoin (liquidityCurrency us) (tokenNameToPlutus poolStateTokenName)
+
+factoryCoin :: Uniswap -> Coin PoolState
+factoryCoin = mkCoin' . unCoin . usCoin 
 
 createFactory :: GYTxMonad m
-               => Uniswap -> Coin PoolState
+               => Uniswap 
                -> m (GYTxSkeleton 'PlutusV2)
-createFactory us c = do
-    scriptAddr <- uniswapAddress us c
+createFactory us = do
+    let c = factoryCoin us
+    scriptAddr <- uniswapAddress us
     unitVal <- valueFromPlutus' $ unitValue c
     let 
         txSkeleton = mustHaveOutput (GYTxOut
@@ -46,11 +71,141 @@ createFactory us c = do
                     })
     return txSkeleton
 
+createPool :: GYTxMonad m
+               => Uniswap 
+               -> GYValue -> GYValue
+               -> m (GYTxSkeleton 'PlutusV2)
+createPool us a b = do
+    (ref, lps) <- findUniswapFactory us
+    gyLogInfo' "" $ printf "createPool 1 createPool re:%s datum:%s" (show ref) (show lps)
+    let c = poolStateCoin us
+    scriptAddr <- uniswapAddress us 
+    unitVal <- valueFromPlutus' $ unitValue c
+    let 
+        txSkeleton = mustHaveOutput (GYTxOut
+                    { gyTxOutAddress = scriptAddr
+                    , gyTxOutValue = unitVal
+                    --, gyTxOutDatum = Nothing
+                    , gyTxOutDatum = Just (datumFromPlutusData (Factory []), GYTxOutUseInlineDatum)
+                    , gyTxOutRefS    = Nothing
+                    })
+    return txSkeleton
+
+findUniswapInstance :: (HasCallStack, GYTxMonad m )
+                       => Uniswap -> Coin b 
+                       -> (UniswapDatum -> Maybe a) -> m (GYTxOutRef, a)
+findUniswapInstance us c f = do
+    addr <- uniswapAddress us
+    gyLogInfo' "" $ printf "findUniswapInstance 1 addr %s" (show addr)
+    utxos  <- utxosAtAddress addr
+    gyLogInfo' "" $ printf "findUniswapInstance 2 utxos %s" (show utxos)
+    let utxos' = filterUTxOs (\GYUTxO {utxoValue} -> isUnity (valueToPlutus utxoValue) c) utxos
+    gyLogInfo' "" $ printf "findUniswapInstance 3 utxos %s" (show utxos')
+    datums <- utxosDatums utxos'
+    go [x | x@(ref, (_, _, d)) <- itoList datums]
+            where
+                go [] = error "MIN: findUniswapInstance: not found"
+                go ((ref, (_, _, d)) : xs) = do
+                    case f d of
+                        Nothing -> go xs
+                        Just a  -> do
+                            return (ref, a)
+
+findUniswapFactory :: GYTxMonad m => Uniswap -> m (GYTxOutRef, [LiquidityPool])
+findUniswapFactory us@Uniswap{..} = findUniswapInstance us usCoin $ \case
+    Factory lps -> Just lps
+    Pool _ _    -> Nothing
+
+
+findUniswapPool :: (GYTxMonad m, Eq LiquidityPool) => Uniswap -> LiquidityPool -> m (GYTxOutRef, Amount Liquidity)
+findUniswapPool us lp = findUniswapInstance us (poolStateCoin us) $ \case
+        Pool lp' l
+            | lp == lp' -> Just l
+        _               -> Nothing
+
+{-}
+
+    {-
+    (ref, d@(lp)) <- findUniswapInstance us (usCoin us) $ \case
+        Factory lps -> True
+        Pool _ _    -> False
+    -}
+
+findUniswapInstance :: (HasCallStack, GYTxMonad m )
+                       => Uniswap -> Coin b 
+                       -> (UniswapDatum -> Bool) -> m (GYTxOutRef, UniswapDatum)
+findUniswapInstance us c f = do
+    addr <- uniswapAddress us
+    gyLogInfo' "" $ printf "findUniswapInstance 1 addr %s" (show addr)
+    utxos  <- utxosAtAddress addr
+    gyLogInfo' "" $ printf "findUniswapInstance 2 utxos %s" (show utxos)
+    let utxos' = filterUTxOs (\GYUTxO {utxoValue} -> isUnity (valueToPlutus utxoValue) c) utxos
+    gyLogInfo' "" $ printf "findUniswapInstance 3 utxos %s" (show utxos')
+    utxos'' <- utxosDatums utxos'
+    case find (\x@(ref, (_, _, d)) -> f d) $ Map.toList utxos'' of
+        Nothing         -> throwError $ GYQueryUTxOException $ GYNoUtxosAtAddress [addr]
+        Just x@(ref, (_, _, d)) -> return (ref, d)
+
+findUniswapFactory :: (HasCallStack, GYTxMonad m )
+                       => Uniswap -> Coin b 
+                       -> (UniswapDatum -> Bool) -> m (GYTxOutRef, [LiquidityPool])
+findUniswapFactory  us c f = do
+    (ref, d@(lp)) <- findUniswapInstance us (usCoin us) $ \case
+        Factory lps -> True
+        Pool _ _    -> False
+    return lp
+
+
+    case find (\GYUTxO{..} -> f utxoOutDatum) $ utxosToList utxos'' of
+        Nothing         -> fail $ "unable to prepare collateral for wallet " <> show w
+        Just GYUTxO{..} -> return utxoRef
+
+    case find (\GYUTxO{..} -> f utxoOutDatum) $ utxosToList utxos'' of
+        Nothing         -> fail $ "unable to prepare collateral for wallet " <> show w
+        Just GYUTxO{..} -> return utxoRef
+
+                go  [x | x@(ref, (_, _, d)) <- Map.toList utxos'']
+                where
+                    go [] = throwError "Uniswap instance not found"
+                    go ((_, (_, _, d)) : xs) = do
+                        case f d of
+                            Nothing -> go xs
+                            Just a  -> do
+                                return a
+
+    go  [x | x@(r, a, v, mh, ms) <- utxosToList utxos'']
+  where
+    go [] = throwError "Uniswap instance not found"
+    go ((r, a, v, mh, ms) : xs) = do
+        case f d of
+            Nothing -> go xs
+            Just a  -> do
+                return Nothing --(oref, o, a)   
+
+    return
+        [ (oref, dat')
+        | (oref, (_, val, dat)) <- Map.toList utxos''
+        , let dat' = printf "%s" (show (dat :: UniswapDatum))
+        --, let dat' = dat
+        ]
+
+    go  [x | x@(r, a, v, mh, ms) <- utxosToList utxos'']
+  where
+    go [] = throwError "Uniswap instance not found"
+    go ((r, a, v, mh, ms) : xs) = do
+        d <- getUniswapDatum o
+        case f d of
+            Nothing -> go xs
+            Just a  -> do
+                logInfo @String $ printf "found Uniswap instance with datum: %s" (show d)
+                return (oref, o, a)   
+-}
+
 listFactory :: GYTxQueryMonad m 
-               => Uniswap -> Coin PoolState
+               => Uniswap 
                -> m [(GYTxOutRef, String)]
-listFactory us c = do
-    addr <- uniswapAddress us c
+listFactory us = do
+    addr <- uniswapAddress us 
     gyLogInfo' "" $ printf "listFactory 1 addr %s" (show addr)
     utxos  <- utxosAtAddress addr
     gyLogInfo' "" $ printf "listFactory 2 utxos %s" (show (utxos))
@@ -60,16 +215,16 @@ listFactory us c = do
     return
         [ (oref, dat')
         | (oref, (_, val, dat)) <- Map.toList utxos'
-        , isUnity (valueToPlutus val) c
+        , isUnity (valueToPlutus val) (factoryCoin us)
         , let dat' = printf "%s" (show (dat :: UniswapDatum))
         --, let dat' = dat
         ]
 
 listFactory' :: GYTxQueryMonad m 
-               => Uniswap -> Coin PoolState
+               => Uniswap
                -> m [(GYTxOutRef, String)]
-listFactory' us c = do
-    addr <- uniswapAddress us c
+listFactory' us = do
+    addr <- uniswapAddress us 
     gyLogInfo' "" $ printf "listFactory 1 addr %s" (show addr)
     utxos  <- utxosAtAddress addr
     gyLogInfo' "" $ printf "listFactory 2 utxos %s" (show (utxos))
@@ -79,10 +234,12 @@ listFactory' us c = do
     return
         [ (oref, dat')
         | (oref, (_, val, dat)) <- Map.toList utxos'
-        , isUnity (valueToPlutus val) c
+        , isUnity (valueToPlutus val) (factoryCoin us)
         , let dat' = toStringX dat
         --, let dat' = dat
         ]
+
+
 
 toStringX :: UniswapDatum -> String
 toStringX dat = do
@@ -146,6 +303,16 @@ helloChecks addr = do
     utxos  <- utxoRefsAtAddress addr
     -- datums <- utxosDatums utxos
     return utxos
+
+listBalance' :: GYTxQueryMonad m 
+               => [GYAddress]
+               -> m GYValue
+listBalance' addrs = do
+    gyLogInfo' "" $ printf "listBalance 1 %s" (show addrs)
+    utxos  <- utxosAtAddresses addrs
+    gyLogInfo' "" $ printf "listBalance 2 utxos %s" (show (utxos))
+    pure $ foldMapUTxOs utxoValue utxos
+
 
 listsDatum :: GYTxQueryMonad m => [GYAddress] -> m [(GYTxOutRef, [Integer])]
 listsDatum addrs = do

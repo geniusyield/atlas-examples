@@ -15,6 +15,7 @@ module Dex.OnChain.Uniswap.OnChain
     ( mkUniswapValidator
     , mkUniswapValidator'
     , validateLiquidityMinting
+    , validateLiquidityMinting'
     ) where
 
 import Data.Void (Void)
@@ -296,6 +297,12 @@ mkUniswapValidator us _ (Pool _  _)   Close       ctx = validateClosePool us ctx
 mkUniswapValidator _  c (Pool lp a)   Remove      ctx = validateRemove c lp a ctx
 mkUniswapValidator _  c (Pool lp a)   Add         ctx = validateAdd c lp a ctx
 mkUniswapValidator _  _ _             _           _   = False
+
+{-# INLINABLE validateLiquidityMinting' #-}
+validateLiquidityMinting' :: Uniswap -> TokenName -> BuiltinData -> BuiltinData -> ()
+validateLiquidityMinting' us tn rd' ctx'
+  | validateLiquidityMinting us tn (unsafeFromBuiltinData rd') (unsafeFromBuiltinData ctx') = ()
+  | otherwise = error ()
 
 {-# INLINABLE validateLiquidityMinting #-}
 validateLiquidityMinting :: Uniswap -> TokenName -> () -> ScriptContext -> Bool

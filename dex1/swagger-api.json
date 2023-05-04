@@ -1,5 +1,42 @@
 {
     "definitions": {
+        "CreatePoolParams": {
+            "properties": {
+                "cppFactoryAssetClass": {
+                    "$ref": "#/definitions/GYAssetClass"
+                },
+                "cppGPParams": {
+                    "$ref": "#/definitions/GeneralParams"
+                },
+                "cppTokenAAmount": {
+                    "type": "integer"
+                },
+                "cppTokenAAssetClass": {
+                    "$ref": "#/definitions/GYAssetClass"
+                },
+                "cppTokenBAmount": {
+                    "type": "integer"
+                },
+                "cppTokenBAssetClass": {
+                    "$ref": "#/definitions/GYAssetClass"
+                }
+            },
+            "required": [
+                "cppGPParams",
+                "cppFactoryAssetClass",
+                "cppTokenAAssetClass",
+                "cppTokenAAmount",
+                "cppTokenBAssetClass",
+                "cppTokenBAmount"
+            ],
+            "type": "object"
+        },
+        "CreatePoolResponse": {
+            "enum": [
+                "CreatePoolResponse"
+            ],
+            "type": "string"
+        },
         "CreateTokensParams": {
             "properties": {
                 "ctpChangeAddr": {
@@ -80,6 +117,17 @@
             "pattern": "[0-9a-fA-F]{64}#\"d+",
             "type": "string"
         },
+        "GYValue": {
+            "additionalProperties": {
+                "type": "integer"
+            },
+            "description": "A multi asset quantity, represented as map where each key represents an asset: policy ID and token name in hex concatenated by a dot.",
+            "example": {
+                "ff80aaaf03a273b8f5c558168dc0e2377eea810badbae6eceefc14ef.474f4c44": 101,
+                "lovelace": 22
+            },
+            "type": "object"
+        },
         "GeneralParams": {
             "properties": {
                 "gpChangeAddr": {
@@ -147,6 +195,31 @@
             "required": [
                 "hwpUsedAddrs",
                 "hwpAddr"
+            ],
+            "type": "object"
+        },
+        "ListBalanceParams": {
+            "properties": {
+                "lbpUsedAddrs": {
+                    "items": {
+                        "$ref": "#/definitions/GYAddress"
+                    },
+                    "type": "array"
+                }
+            },
+            "required": [
+                "lbpUsedAddrs"
+            ],
+            "type": "object"
+        },
+        "ListBalanceResponse": {
+            "properties": {
+                "lbrValue": {
+                    "$ref": "#/definitions/GYValue"
+                }
+            },
+            "required": [
+                "lbrValue"
             ],
             "type": "object"
         },
@@ -349,6 +422,37 @@
                 }
             }
         },
+        "/dex/pool/create": {
+            "post": {
+                "consumes": [
+                    "application/json;charset=utf-8"
+                ],
+                "parameters": [
+                    {
+                        "in": "body",
+                        "name": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/CreatePoolParams"
+                        }
+                    }
+                ],
+                "produces": [
+                    "application/json;charset=utf-8"
+                ],
+                "responses": {
+                    "200": {
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/CreatePoolResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid `body`"
+                    }
+                }
+            }
+        },
         "/dex/token/create": {
             "post": {
                 "consumes": [
@@ -434,6 +538,37 @@
                         "description": "",
                         "schema": {
                             "$ref": "#/definitions/HelloWorldDataResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid `body`"
+                    }
+                }
+            }
+        },
+        "/dex/wallet/balance": {
+            "post": {
+                "consumes": [
+                    "application/json;charset=utf-8"
+                ],
+                "parameters": [
+                    {
+                        "in": "body",
+                        "name": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/ListBalanceParams"
+                        }
+                    }
+                ],
+                "produces": [
+                    "application/json;charset=utf-8"
+                ],
+                "responses": {
+                    "200": {
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/ListBalanceResponse"
                         }
                     },
                     "400": {
