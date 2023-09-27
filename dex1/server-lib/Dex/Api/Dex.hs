@@ -78,7 +78,7 @@ data CreatePoolParams = CreatePoolParams
 
 data CreatePoolResponse = CreatePoolResponse
   { 
-    -- cprUnsignedTxResponse :: !UnsignedTxResponse
+    cprUnsignedTxResponse :: !UnsignedTxResponse
   } deriving (Show, Generic, FromJSON, ToJSON, Swagger.ToSchema)
 
 data StartFactoryResponse = StartFactoryResponse
@@ -162,12 +162,17 @@ handleFactory ctx StartFactoryParams{..} = do
 handleCreatePool :: Ctx -> CreatePoolParams -> IO CreatePoolResponse
 handleCreatePool ctx CreatePoolParams{..} = do
   let us   = uniswap cppFactoryAssetClass
-      tokenA = valueSingleton cppTokenAAssetClass cppTokenAAmount
-      tokenB = valueSingleton cppTokenBAssetClass cppTokenBAmount
+      --tokenA = valueSingleton cppTokenAAssetClass cppTokenAAmount
+      --tokenB = valueSingleton cppTokenBAssetClass cppTokenBAmount
   -- fail $ printf "tokenA %s" tokenA
   txBody <- runTxI ctx (gpUsedAddrs cppGPParams) (gpChangeAddr cppGPParams) (gpCollateral cppGPParams)
-              $ createPool us tokenA tokenB      
-  pure $ CreatePoolResponse 
+              $ createPool 
+                  us 
+                  (Script'.Coin $ assetClassToPlutus cppTokenAAssetClass)
+                  (Script'.Amount cppTokenAAmount) 
+                  (Script'.Coin $ assetClassToPlutus cppTokenBAssetClass)
+                  (Script'.Amount cppTokenBAmount)  
+  pure $ CreatePoolResponse (unSignedTxWithFee txBody Nothing)
 
 handleListFactory :: Ctx -> ListFactoryParams -> IO ListFactoryResponse
 handleListFactory ctx ListFactoryParams{..} = do

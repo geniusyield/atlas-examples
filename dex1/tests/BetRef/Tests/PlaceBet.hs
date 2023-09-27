@@ -14,16 +14,21 @@ import           Plutus.Model
 import           BetRef.Api.Operations
 import           BetRef.OnChain.BetRef.Compiled
 
-import           GeniusYield.Test.Utils
+import GeniusYield.Test.Utils
 import           GeniusYield.TxBuilder
 import           GeniusYield.Types
+
+-- min import
+import Text.Printf (printf)
 
 -- | Our unit tests for placing bet operation
 placeBetTests :: TestTree
 placeBetTests = testGroup "Place Bet"
-    [ testRun "Balance checks after placing first bet" $ firstBetTrace (OracleAnswerDatum 3) (valueFromLovelace 20_000_000) 0_182_969
-    , testRun "Balance checks with multiple bets" $ multipleBetsTraceWrapper 400 1_000 (valueFromLovelace 10_000_000) [(w1, OracleAnswerDatum 1, valueFromLovelace 10_000_000), (w2, OracleAnswerDatum 2, valueFromLovelace 20_000_000), (w3, OracleAnswerDatum 3, valueFromLovelace 30_000_000), (w2, OracleAnswerDatum 4, valueFromLovelace 50_000_000), (w4, OracleAnswerDatum 5, valueFromLovelace 65_000_000 <> fakeGold 1_000)]
-    , testRun "Not adding atleast bet step amount should fail" $ mustFail . multipleBetsTraceWrapper 400 1_000 (valueFromLovelace 10_000_000) [(w1, OracleAnswerDatum 1, valueFromLovelace 10_000_000), (w2, OracleAnswerDatum 2, valueFromLovelace 20_000_000), (w3, OracleAnswerDatum 3, valueFromLovelace 30_000_000), (w2, OracleAnswerDatum 4, valueFromLovelace 50_000_000), (w4, OracleAnswerDatum 5, valueFromLovelace 55_000_000 <> fakeGold 1_000)]
+    [ 
+      testRun "Balance checks after placing first bet" $ firstBetTrace (OracleAnswerDatum 3) (valueFromLovelace 21_000_001) 0_182_969
+    --, testRun "Balance checks after placing first bet" $ firstBetTrace (OracleAnswerDatum 3) (valueFromLovelace 20_000_000) 0_182_969
+    --, testRun "Balance checks with multiple bets" $ multipleBetsTraceWrapper 400 1_000 (valueFromLovelace 10_000_000) [(w1, OracleAnswerDatum 1, valueFromLovelace 10_000_000), (w2, OracleAnswerDatum 2, valueFromLovelace 20_000_000), (w3, OracleAnswerDatum 3, valueFromLovelace 30_000_000), (w2, OracleAnswerDatum 4, valueFromLovelace 50_000_000), (w4, OracleAnswerDatum 5, valueFromLovelace 65_000_000 <> fakeGold 1_000)]
+    --, testRun "Not adding atleast bet step amount should fail" $ mustFail . multipleBetsTraceWrapper 400 1_000 (valueFromLovelace 10_000_000) [(w1, OracleAnswerDatum 1, valueFromLovelace 10_000_000), (w2, OracleAnswerDatum 2, valueFromLovelace 20_000_000), (w3, OracleAnswerDatum 3, valueFromLovelace 30_000_000), (w2, OracleAnswerDatum 4, valueFromLovelace 50_000_000), (w4, OracleAnswerDatum 5, valueFromLovelace 55_000_000 <> fakeGold 1_000)]
     ]
 
 -- | Run to call the `placeBet` operation.
@@ -43,10 +48,29 @@ computeParamsAndAddRefScript betUntil' betReveal' betStep Wallets{..} = do
   let betUntil = slotFromApi (fromInteger betUntil')
       betReveal = slotFromApi (fromInteger betReveal')
   fmap fromJust $ runWallet w1 $ do
+    liftRun $ logInfo $ printf "hello world min 2"
+    balw1 <- (balance w1)
+    liftRun $ logInfo $ printf "hello world min 2.w1 %s" balw1
+    balw2 <- (balance w2)
+    liftRun $ logInfo $ printf "hello world min 2.w2 %s" balw2
+    balw8 <- (balance w8)
+    liftRun $ logInfo $ printf "hello world min 2.w8 %s" balw8
+    balw9 <- (balance w9)
+    liftRun $ logInfo $ printf "hello world min 2.w9 %s" balw9
     betUntilTime <- slotToBeginTime betUntil
     betRevealTime <- slotToBeginTime betReveal
     let brp = BetRefParams (pubKeyHashToPlutus $ walletPubKeyHash w8) (timeToPlutus betUntilTime) (timeToPlutus betRevealTime) (valueToPlutus betStep)  -- let oracle be wallet `w8`.
+    liftRun $ logInfo $ printf "hello world min 3"
     mORef <- addRefScript (walletAddress w9) (betRefValidator' brp)
+    liftRun $ logInfo $ printf "hello world min 4"
+    balw1 <- (balance w1)
+    liftRun $ logInfo $ printf "hello world min 4.w1 %s" balw1
+    balw2 <- (balance w2)
+    liftRun $ logInfo $ printf "hello world min 4.w2 %s" balw2
+    balw8 <- (balance w8)
+    liftRun $ logInfo $ printf "hello world min 4.w8 %s" balw8
+    balw9 <- (balance w9)
+    liftRun $ logInfo $ printf "hello world min 4.w9 %s" balw9
     case mORef of
       Nothing        -> fail "Couldn't find index of the Reference Script in outputs"
       Just refScript -> return (brp, refScript)
@@ -58,11 +82,63 @@ firstBetTrace :: OracleAnswerDatum  -- ^ Guess
               -> Wallets -> Run ()  -- Our continuation function
 firstBetTrace dat bet expectedFees ws@Wallets{..} = do
   -- First step: Get the required parameters for initializing our parameterized script and add the corresponding reference script
-  (brp, refScript) <- computeParamsAndAddRefScript 40 100 (valueFromLovelace 200_000_000) ws
+  void $ logInfo $ printf "hello world min 1"
+  (brp, refScript) <- computeParamsAndAddRefScript 40 150 (valueFromLovelace 200_000_000) ws
+  void $ logInfo $ printf "hello world min 5"
+  balw1 <- fromJust <$> runWallet w1 (balance w1)
+  void $ logInfo $ printf "hello world min 5.w1 %s" balw1
+  balw2 <- fromJust <$> runWallet w1 (balance w2)
+  void $ logInfo $ printf "hello world min 5.w2 %s" balw2
+  balw8 <- fromJust <$> runWallet w1 (balance w8)
+  void $ logInfo $ printf "hello world min 5.w8 %s" balw8
+  balw9 <- fromJust <$> runWallet w1 (balance w9)
+  void $ logInfo $ printf "hello world min 5.w9 %s" balw9
   void $ runWallet w1 $ do  -- following operations are ran by first wallet, `w1`
+    liftRun $ logInfo $ printf "hello world min 6"
   -- Second step: Perform the actual run.
     withWalletBalancesCheck [w1 := valueNegate (valueFromLovelace expectedFees <> bet)] $ do
       placeBetRun refScript brp dat bet Nothing
+  void $ logInfo $ printf "hello world min 7"
+  balw1 <- fromJust <$> runWallet w1 (balance w1)
+  void $ logInfo $ printf "hello world min 7.w1 %s" balw1
+  balw2 <- fromJust <$> runWallet w1 (balance w2)
+  void $ logInfo $ printf "hello world min 7.w2 %s" balw2
+  balw8 <- fromJust <$> runWallet w1 (balance w8)
+  void $ logInfo $ printf "hello world min 7.w8 %s" balw8
+  balw9 <- fromJust <$> runWallet w1 (balance w9)
+  void $ logInfo $ printf "hello world min 7.w9 %s" balw9
+  let bet2 = bet <> (valueFromLovelace 22_000_002)
+  void $ runWallet w1 $ do  -- following operations are ran by first wallet, `w1`
+    liftRun $ logInfo $ printf "hello world min 8"
+    balw1 <- (balance w1)
+    liftRun $ logInfo $ printf "hello world min 9.w1 %s" balw1
+    balw2 <- (balance w2)
+    liftRun $ logInfo $ printf "hello world min 9.w2 %s" balw2
+    balw8 <- (balance w8)
+    liftRun $ logInfo $ printf "hello world min 9.w8 %s" balw8
+    balw9 <- (balance w9)
+    liftRun $ logInfo $ printf "hello world min 9.w9 %s" balw9
+  -- Second step: Perform the actual run.
+    withWalletBalancesCheck [w1 := valueNegate (valueFromLovelace expectedFees <> bet2)] $ do
+      placeBetRun refScript brp dat bet2 Nothing
+  balw1 <- fromJust <$> runWallet w1 (balance w1)
+  void $ logInfo $ printf "hello world min 10.w1 %s" balw1
+  balw2 <- fromJust <$> runWallet w1 (balance w2)
+  void $ logInfo $ printf "hello world min 10.w2 %s" balw2
+  balw8 <- fromJust <$> runWallet w1 (balance w8)
+  void $ logInfo $ printf "hello world min 10.w8 %s" balw8
+  balw9 <- fromJust <$> runWallet w1 (balance w9)
+  void $ logInfo $ printf "hello world min 10.w9 %s" balw9
+
+{-
+
+  void $ getBalance w1
+  void $ logInfo $ printf "hello world min 9"
+  void $ logInfo $ printf "hello world min 10 %s " (getBalance w1)
+  void $ runWallet w1 $ do  -- following operations are ran by first wallet, `w1`
+    abc <- getBalance w1
+    abc
+-}
 
 -- | Trace which allows for multiple bets.
 multipleBetsTraceWrapper

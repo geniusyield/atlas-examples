@@ -24,6 +24,7 @@ common dex-common
     GeneralizedNewtypeDeriving
   ghc-options:
     -Wall -Wunticked-promoted-constructors -Wunused-packages
+  ghc-options: -haddock 
 
 common betref-common
   default-language:   Haskell2010
@@ -40,6 +41,7 @@ common betref-common
     NumericUnderscores
   ghc-options:
     -Wall -Wunticked-promoted-constructors -Wunused-packages
+  ghc-options: -haddock 
 
 library dex-onchain
   import:           dex-common
@@ -48,6 +50,7 @@ library dex-onchain
   ghc-options:
     -fno-ignore-interface-pragmas -fno-omit-interface-pragmas
     -Wno-partial-type-signatures
+  ghc-options: -haddock 
 
   -- expose all unfoldings, so plutustx compiler can do its job
   ghc-options:      -fexpose-all-unfoldings -fobject-code -fplugin-opt PlutusTx.Plugin:defer-errors
@@ -82,6 +85,7 @@ library betref-onchain
   ghc-options:
     -fno-ignore-interface-pragmas -fno-omit-interface-pragmas
     -Wno-partial-type-signatures
+  ghc-options: -haddock 
 
   -- expose all unfoldings, so plutustx compiler can do its job
   ghc-options:      -fexpose-all-unfoldings -fobject-code -fplugin-opt PlutusTx.Plugin:defer-errors
@@ -99,6 +103,7 @@ library betref-onchain
 
 library dex-server-lib
   import:           dex-common
+  ghc-options: -haddock 
   hs-source-dirs:   server-lib
   exposed-modules:
     Dex.Api.Api
@@ -122,6 +127,7 @@ library dex-server-lib
 
 library betref-server-lib
   import:           betref-common
+  ghc-options: -haddock 
   hs-source-dirs:   server-lib
   exposed-modules:
     BetRef.Api.Api
@@ -149,6 +155,7 @@ executable dex-server
   ghc-options:
     -O2 -threaded -rtsopts -with-rtsopts=-T -fplugin-opt
     PlutusTx.Plugin:defer-errors
+  ghc-options: -haddock 
 
   build-depends:
     , aeson-pretty
@@ -171,6 +178,7 @@ executable betref-server
   ghc-options:
     -O2 -threaded -rtsopts -with-rtsopts=-T -fplugin-opt
     PlutusTx.Plugin:defer-errors
+  ghc-options: -haddock 
 
   build-depends:
     , aeson-pretty
@@ -207,6 +215,7 @@ test-suite dex-tests
 test-suite betref-tests
   import:         betref-common
   ghc-options:    -threaded -rtsopts
+  ghc-options: -haddock 
   type:           exitcode-stdio-1.0
   main-is:        betref-tests.hs
   hs-source-dirs: tests
@@ -228,6 +237,7 @@ test-suite dex-privnet-tests
   import:         dex-common
   type:           exitcode-stdio-1.0
   ghc-options:    -threaded -rtsopts
+  ghc-options: -haddock 
   hs-source-dirs: tests-privnet
   main-is:        dex-privnet-tests.hs
   other-modules:
@@ -246,6 +256,7 @@ test-suite betref-privnet-tests
   import:         betref-common
   type:           exitcode-stdio-1.0
   ghc-options:    -threaded -rtsopts
+  ghc-options: -haddock 
   hs-source-dirs: tests-privnet
   main-is:        betref-privnet-tests.hs
   other-modules:

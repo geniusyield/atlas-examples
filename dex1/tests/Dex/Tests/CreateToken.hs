@@ -11,7 +11,7 @@ import           Test.Tasty                     (TestTree, testGroup)
 import           Plutus.Model
 import           Plutus.Model.Fork.TxExtra
 
-import           Dex.Api.Operations (mintTestTokens)
+import           Dex.Api.Operations (mintTestTokens, createFactory, createPool)
 import           Dex.OnChain.Dex.Compiled
 
 import           GeniusYield.Test.Utils
@@ -24,11 +24,52 @@ import qualified GeniusYield.Types.Value
 import Plutus.Model.Fork.Ledger.Scripts
 import Data.Either (rights)
 import GeniusYield.Imports (printf)
+import Dex.Api.Dex (uniswap)
+import qualified Dex.OnChain.Uniswap.Types as Script'
 
 createTokenTests :: TestTree
 createTokenTests = testGroup "Create Token Test"
-    [ testRun "Balance checks after placing first bet" $ createTrace4 "minToken" 1 ]
+    [ testRun "Balance checks after create pool" $ createPool1 "minToken" 1 ]
+--    [ testRun "Balance checks after create token" $ createTrace4 "minToken" 1 ]
 
+createTokenRun4 :: GYTokenName -> Natural -> GYTxMonadRun (GYAssetClass, GYTxId)
+createTokenRun4 tn noOfTokens = do
+    (ass, skeleton) <- mintTestTokens tn noOfTokens
+    logMsg "" GeniusYield.Types.Logging.GYDebug "Min 0" 
+    tx <- sendSkeleton skeleton
+    return (ass, tx)
+
+createPool1 :: String -> Natural -> Wallets -> Run ()
+createPool1 tn noOfTokens ws@Wallets{..} = do
+    void $ runWallet w1 $ do 
+        (b@(ass, tx), diff) <- withBalance (walletName w1) w1 $ do
+                    b@(ass, tx) <- createTokenRun4 tn' noOfTokens
+                    let us   = uniswap ass
+                    factorySkeleton <- createFactory us
+                    factoryTx <- sendSkeleton factorySkeleton
+                    poolSkeleton <- createPool us 
+                        (Script'.Coin fakeGold)
+                        (Script'.Amount 4) 
+                        (Script'.Coin fakeIron)
+                        (Script'.Amount 2)     
+                    poolTx <- sendSkeleton poolSkeleton                                         
+                    return b
+        liftRun $ logInfo $ printf "Min 1: b %s %s" ass tx
+        liftRun $ logInfo $ printf "Min 2: diff %s" diff
+        if (invalid diff) 
+            then fail $ printf "Min: expected balance difference of %s for wallet %s, but the actual difference was %s" tx (walletName w1) diff
+            else return (b, diff)                                
+                            where
+                                tn' :: GYTokenName
+                                tn' = fromString tn
+                                invalid :: GYValue -> Bool
+                                invalid diff = 
+                                    let 
+                                        (actualAda, actualOtherAssets) = valueSplitAda diff
+                                    in
+                                        actualAda>=0 || (valueTotalAssets actualOtherAssets) /= 1
+
+                         
 createTokenRun''' :: GYTokenName -> Natural -> GYTxMonadRun GYTxId
 createTokenRun''' tn noOfTokens = do
     (ass, skeleton) <- mintTestTokens tn noOfTokens

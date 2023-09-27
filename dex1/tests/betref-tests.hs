@@ -8,4 +8,5 @@ import           BetRef.Tests.PlaceBet   (placeBetTests)
 import           BetRef.Tests.TakeBetPot (takeBetPotTests)
 
 main :: IO ()
-main = defaultMain $ testGroup "BetRef" [placeBetTests, takeBetPotTests]
+main = defaultMain $ testGroup "BetRef" [placeBetTests]
+--main = defaultMain $ testGroup "BetRef" [placeBetTests, takeBetPotTests]

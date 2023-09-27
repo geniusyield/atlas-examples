@@ -103,6 +103,7 @@ validateCreate :: Uniswap
                -> ScriptContext
                -> Bool
 validateCreate Uniswap{..} c lps lp@LiquidityPool{..} ctx =
+    -- traceIfFalse "Hello world fail MIN validateCreate" False &&
     traceIfFalse "Uniswap coin not present" (isUnity (valueWithin $ findOwnInput' ctx) usCoin)     && -- 1.
     (unCoin lpCoinA /= unCoin lpCoinB)                                                             && -- 3.
     notElem lp lps                                                                                 && -- 4.

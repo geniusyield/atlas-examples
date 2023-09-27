@@ -12,7 +12,10 @@ module Dex.OnChain.Uniswap.Uniswap.Compiled (
     isUnity,
     liquidityPolicy,
     LiquidityPool(..),
-    Amount, Liquidity
+    Liquidity,
+    A, B, U,
+    valueOf,
+    Amount(..), UniswapAction (..)
 ) where
 
 import qualified Plutus.V2.Ledger.Api as V2  
@@ -22,7 +25,12 @@ import qualified PlutusTx
 
 import Dex.OnChain.Uniswap.Types
     ( isUnity, unitValue, Coin(..), PoolState, Uniswap(..), UniswapDatum(..), Amount, Liquidity, 
-    LiquidityPool(..) )
+    LiquidityPool(..),
+    A, B, U,
+    valueOf,
+    Amount(unAmount), UniswapAction (..)
+    
+    )
 import           Dex.OnChain.Uniswap.OnChain
 import           Dex.OnChain.Uniswap.Pool
 

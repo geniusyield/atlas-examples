@@ -32,10 +32,15 @@
             "type": "object"
         },
         "CreatePoolResponse": {
-            "enum": [
-                "CreatePoolResponse"
+            "properties": {
+                "cprUnsignedTxResponse": {
+                    "$ref": "#/definitions/UnsignedTxResponse"
+                }
+            },
+            "required": [
+                "cprUnsignedTxResponse"
             ],
-            "type": "string"
+            "type": "object"
         },
         "CreateTokensParams": {
             "properties": {
