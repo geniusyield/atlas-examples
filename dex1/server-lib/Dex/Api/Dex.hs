@@ -167,6 +167,7 @@ handleCreatePool ctx CreatePoolParams{..} = do
   -- fail $ printf "tokenA %s" tokenA
   txBody <- runTxI ctx (gpUsedAddrs cppGPParams) (gpChangeAddr cppGPParams) (gpCollateral cppGPParams)
               $ createPool 
+                (gpChangeAddr cppGPParams)
                   us 
                   (Script'.Coin $ assetClassToPlutus cppTokenAAssetClass)
                   (Script'.Amount cppTokenAAmount) 

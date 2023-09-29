@@ -14,6 +14,7 @@ module Dex.Api.Operations
   , UniswapDatum(..)
   , listBalance'
   , createPool
+  , mShowUtxos
   ) where
 
 
@@ -37,7 +38,7 @@ import Dex.OnChain.Uniswap.Uniswap.Compiled
        )
 import qualified Dex.OnChain.Uniswap.Uniswap.Compiled as LQS
 import Data.Data (typeOf)
-import Plutus.V1.Ledger.Api (POSIXTime, CurrencySymbol, TxOutRef)
+import Plutus.V2.Ledger.Api (POSIXTime, CurrencySymbol, TxOutRef)
 import Dex.OnChain.Uniswap.Pool
 
 poolStateTokenName :: GYTokenName
@@ -55,7 +56,7 @@ liquidityCurrency us = mintingPolicyCurrencySymbol $ liquidityPolicy' us poolSta
 poolStateCoin :: Uniswap -> Coin PoolState
 poolStateCoin us = mkCoin (liquidityCurrency us) (tokenNameToPlutus poolStateTokenName)
 
-factoryCoin :: Uniswap -> Coin PoolState
+factoryCoin :: Uniswap -> Coin U
 factoryCoin = mkCoin' . unCoin . usCoin 
 
 createFactory :: GYTxMonad m
@@ -75,12 +76,22 @@ createFactory us = do
                     })
     return txSkeleton
 
+mShowUtxos :: GYTxMonad m => Uniswap 
+               -> m (GYTxSkeleton 'PlutusV2)
+mShowUtxos us = do
+    gyLogInfo' "" $ printf "Min.showUtxos.1"
+    (ref, lps) <- findUniswapFactory us
+    gyLogInfo' "" $ printf "Min.showUtxos.2 ref:%s datum:%s" (show ref) (show lps)
+
+    gyLogInfo' "" $ printf "Min.showUtxos.1"
+    return mempty
+
 createPool :: GYTxMonad m
-               => Uniswap 
+               => GYAddress -> Uniswap 
                -> Coin A -> Amount A
                -> Coin B -> Amount B
                -> m (GYTxSkeleton 'PlutusV2)
-createPool us coinA amountA coinB amountB = do
+createPool addr us coinA amountA coinB amountB = do
     gyLogInfo' "" $ printf "createPool 0 createPool us:%s coinA:%s amountA:%s coinB:%s amountB:%s" (show us) (show coinA) (show amountA) (show coinB) (show amountB)
     (ref, lps) <- findUniswapFactory us
     gyLogInfo' "" $ printf "createPool 1 createPool re:%s datum:%s" (show ref) (show lps)
@@ -94,7 +105,7 @@ createPool us coinA amountA coinB amountB = do
         psC         = poolStateCoin us
         lC          = mkCoin (liquidityCurrency us) $ lpTicker lp
         usVal       = unitValue $ usCoin us
-        lpVal       = LQS.valueOf coinA amountA <> LQS.valueOf coinB amountB <> unitValue psC
+        lpVal       = unitValue psC  <> LQS.valueOf coinA amountA <> LQS.valueOf coinB amountB
     scriptAddr <- uniswapAddress us 
 
     gyLogInfo' "" $ printf "createPool 4"
@@ -108,20 +119,26 @@ createPool us coinA amountA coinB amountB = do
         liquidityPolicy'' = liquidityPolicy' us lpTokenName
         psLiquidityPolicy = liquidityPolicy' us poolStateTokenName
     gyLogInfo' "" $ printf "createPool 6"
+    
+    gyLogInfo' "" $ printf "createPool 6.0 %s" (show lpTokenName)
+    refs <- utxoRefsAtAddress addr
+    uts <- utxosAtAddress addr
+    let
+        skel = mconcat [mustHaveInput (GYTxIn ut GYTxInWitnessKey) | ut <- refs ]
+    gyLogInfo' "" $ printf "createPool 6.1 %s" (show skel)
+    gyLogInfo' "" $ printf "createPool 6.2 %s" (show "hello 2")
+    gyLogInfo' "" $ printf "createPool 6.3 %s" (show uts)
+
     let 
-        txSkeleton = mustHaveInput (GYTxIn { gyTxInTxOutRef = ref
+        txSkeleton =
+                  mustMint psLiquidityPolicy unitRedeemer poolStateTokenName 1
+                  <> mustHaveInput (GYTxIn { gyTxInTxOutRef = ref
                                             , gyTxInWitness  = GYTxInWitnessScript
                                                 (GYInScript usInst)
                                                 (datumFromPlutusData (Factory lps))
                                                 (redeemerFromPlutusData (Create lp))
                                             })
-                  <> mustHaveOutput (GYTxOut
-                    { gyTxOutAddress = scriptAddr
-                    , gyTxOutValue = usCVal
-                    --, gyTxOutDatum = Nothing
-                    , gyTxOutDatum = Just (datumFromPlutusData usDat1, GYTxOutUseInlineDatum)
-                    , gyTxOutRefS    = Nothing
-                    })
+
                   <> mustHaveOutput (GYTxOut
                     { gyTxOutAddress = scriptAddr
                     , gyTxOutValue = lpCVal
@@ -129,9 +146,24 @@ createPool us coinA amountA coinB amountB = do
                     , gyTxOutDatum = Just (datumFromPlutusData usDat2, GYTxOutUseInlineDatum)
                     , gyTxOutRefS    = Nothing
                     })
+
+                  -- <> skel    
+                  <> mustHaveOutput (GYTxOut
+                    { gyTxOutAddress = scriptAddr
+                    , gyTxOutValue = usCVal
+                    --, gyTxOutDatum = Nothing
+                    , gyTxOutDatum = Just (datumFromPlutusData usDat1, GYTxOutUseInlineDatum)
+                    , gyTxOutRefS    = Nothing
+                    })     
                   <> mustMint liquidityPolicy'' unitRedeemer lpTokenName (unAmount liquidity) 
-                  <> mustMint psLiquidityPolicy unitRedeemer poolStateTokenName 1
+{-
+
+-}  
+
     gyLogInfo' "" $ printf "createPool 7"
+    gyLogInfo' "" $ printf "createPool 7.1 %s" (show txSkeleton)
+    --gyLogInfo' "" $ printf "createPool 7.1 Skeleton: %s" txSkeleton
+    gyLogInfo' "" $ printf "createPool 8"
     return txSkeleton
 
 findUniswapInstance :: (HasCallStack, GYTxMonad m )

@@ -28,7 +28,8 @@ import Plutus.V2.Ledger.Api (Datum (Datum), DatumHash, OutputDatum (..), ScriptC
 import qualified Plutus.V2.Ledger.Contexts as V2
 import qualified PlutusTx
 import PlutusTx.Prelude
-import Plutus.V1.Ledger.Value (AssetClass(..), symbols)
+import Plutus.V1.Ledger.Value (AssetClass(..), symbols, assetClass, flattenValue, CurrencySymbol)
+import Prelude (showList)
 
 
 
@@ -103,7 +104,29 @@ validateCreate :: Uniswap
                -> ScriptContext
                -> Bool
 validateCreate Uniswap{..} c lps lp@LiquidityPool{..} ctx =
-    -- traceIfFalse "Hello world fail MIN validateCreate" False &&
+    traceIfFalse "Min VC 0: Uniswap coin not present" (isUnity (valueWithin $ findOwnInput' ctx) usCoin)     && -- 1.
+    traceIfFalse "Min VC 1: " (unCoin lpCoinA /= unCoin lpCoinB)                                                             && -- 3.
+    traceIfFalse "Min VC 2: " (notElem lp lps)                                                                                 && -- 4.
+    traceIfFalse "Min VC 3: "(isUnity minted c)              
+  where
+    poolOutput :: TxOut
+    poolOutput = case [o | o <- V2.getContinuingOutputs ctx, isUnity (txOutValue o) c] of
+        [o] -> o
+        _   -> traceError "expected exactly one pool output"
+
+    outA      = amountOf (txOutValue poolOutput) lpCoinA
+    outB      = amountOf (txOutValue poolOutput) lpCoinB
+    liquidity = calculateInitialLiquidity outA outB
+
+    minted :: Value
+    minted = txInfoMint $ scriptContextTxInfo ctx
+
+    liquidityCoin' :: Coin Liquidity
+    liquidityCoin' = let AssetClass (cs,_) = unCoin c in mkCoin cs $ lpTicker lp
+
+{-
+    --traceError "MIN vc 0: expected exactly one pool output"
+    --traceIfFalse "MIN: validateCreate: fail" False &&
     traceIfFalse "Uniswap coin not present" (isUnity (valueWithin $ findOwnInput' ctx) usCoin)     && -- 1.
     (unCoin lpCoinA /= unCoin lpCoinB)                                                             && -- 3.
     notElem lp lps                                                                                 && -- 4.
@@ -126,6 +149,8 @@ validateCreate Uniswap{..} c lps lp@LiquidityPool{..} ctx =
 
     liquidityCoin' :: Coin Liquidity
     liquidityCoin' = let AssetClass (cs,_) = unCoin c in mkCoin cs $ lpTicker lp
+-}
+
 
 {-# INLINABLE validateCloseFactory #-}
 -- | See 'Plutus.Contracts.Uniswap.OffChain.close'.
@@ -308,14 +333,79 @@ validateLiquidityMinting' us tn rd' ctx'
 {-# INLINABLE validateLiquidityMinting #-}
 validateLiquidityMinting :: Uniswap -> TokenName -> () -> ScriptContext -> Bool
 validateLiquidityMinting Uniswap{..} tn _ ctx
-  = case [ i
+  =
+    case [ i
+         | i <- txInfoInputs $ scriptContextTxInfo ctx
+         , let v = valueWithin i
+         , isUnity v usCoin || isPSCUnity v
+         ] of
+    [_]    -> True
+    [_, _] -> True
+    _      -> traceError "MIN: pool state minting without Uniswap input"
+
+  where
+    info :: TxInfo
+    info = scriptContextTxInfo ctx
+
+    isPSCUnity :: Value -> Bool
+    isPSCUnity v = foldr (||) False [isUnity v (lpCX cur) | a@(cur, m, n) <- flattenValue $ txInfoMint info]
+
+    --[(cur', tn', amt'), (cur'', tn'', amt'')] = flattenValue $ txInfoMint info
+
+    lpCX :: CurrencySymbol -> Coin PoolState
+    lpCX cur = Coin $ assetClass cur tn
+
+
+
+ {-
+  = 
+    traceIfFalse "MIN.VLM.>0: " (length (flattenValue (txInfoMint info)) > 0) && 
+    traceIfFalse "MIN.VLM.>1: " (length (flattenValue (txInfoMint info)) > 1) && 
+    traceIfFalse "MIN.VLM.>2: " (length (flattenValue (txInfoMint info)) > 2) 
+  where
+    info :: TxInfo
+    info = scriptContextTxInfo ctx
+
+    True
+    case [ i
          | i <- txInfoInputs $ scriptContextTxInfo ctx
          , let v = valueWithin i
          , isUnity v usCoin || isUnity v lpC
          ] of
     [_]    -> True
     [_, _] -> True
-    _      -> traceError "pool state minting without Uniswap input"
+    _      -> traceError "MIN: pool state minting without Uniswap input"
+
+  where
+    info :: TxInfo
+    info = scriptContextTxInfo ctx
+
+    [(cur', tn', amt')] = flattenValue $ txInfoMint info
+
+    lpC :: Coin PoolState
+    lpC = Coin $ assetClass cur' tn
+-}    
+--  True
+    --let
+--    traceError "MIN 0: pool state minting without Uniswap input" 
+--      x = txInfoInputs $ scriptContextTxInfo ctx
+--  traceError "MIN 0: pool state minting without Uniswap input"  
+--  traceIfFalse "MIN: vlm: throw" False 
+--    where 
+--      x :: BuiltinString
+--      x = length (txInfoInputs $ scriptContextTxInfo ctx)
+--  traceIfFalse "MIN: vlm: throw" False 
+  --length (txInfoInputs $ scriptContextTxInfo ctx) > 1
+{-
+    case [ i
+         | i <- txInfoInputs $ scriptContextTxInfo ctx
+         , let v = valueWithin i
+         , isUnity v usCoin || isUnity v lpC
+         ] of
+    [_]    -> True
+    [_, _] -> True
+    _      -> traceError "MIN: pool state minting without Uniswap input"
   where
     lpC :: Coin PoolState
     lpC = mkCoin (V2.ownCurrencySymbol ctx) tn
+-}

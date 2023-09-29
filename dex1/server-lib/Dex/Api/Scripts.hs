@@ -5,7 +5,7 @@ module Dex.Api.Scripts (
     Uniswap(..),
 ) where
 
-import           Plutus.V1.Ledger.Api
+import           Plutus.V2.Ledger.Api
 
 import           Dex.OnChain.Dex.Compiled (originalTestTokenPolicy)
 import           GeniusYield.Types

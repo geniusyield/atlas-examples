@@ -28,7 +28,7 @@ import PlutusTx.Prelude
 import qualified Prelude as Haskell
 import Text.Printf (PrintfArg)
 import Plutus.V1.Ledger.Value (AssetClass (..), Value, assetClassValueOf, assetClassValue, assetClass)
-import Plutus.V1.Ledger.Api (CurrencySymbol (..), TokenName (..))
+import Plutus.V2.Ledger.Api (CurrencySymbol (..), TokenName (..))
 
 -- | Uniswap coin token
 data U = U deriving (Haskell.Show, Haskell.Eq, Generic, Data)
