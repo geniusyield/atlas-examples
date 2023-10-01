@@ -15,6 +15,7 @@ module Dex.Api.Operations
   , createPool
   , closePool
   , mShowUtxos
+  , pools
   ) where
 
 
@@ -214,6 +215,90 @@ closePool us coinA coinB = do
     gyLogInfo' "" $ printf "MIN.closePool.3 skeleton %s" (show txSkeleton)
 
     return txSkeleton
+
+pools :: GYTxQueryMonad m => Uniswap -> m [((Coin A, Amount A), (Coin B, Amount B))]
+pools us = do
+    scriptAddr <- uniswapAddress us
+    gyLogInfo' "" $ printf "Min.pools.1 addr %s" (show scriptAddr)
+    utxos <- utxosAtAddress scriptAddr
+    gyLogInfo' "" $ printf "Min.pools.2 utxos %s" (show utxos)
+
+    let        
+        c :: Coin PoolState
+        c = poolStateCoin us
+
+        utxos' = filterUTxOs 
+                    (\GYUTxO {utxoValue} -> isUnity (valueToPlutus utxoValue) c) 
+                    utxos
+
+    gyLogInfo' "" $ printf "Min.pools.3 utxos' %s" (show utxos')    
+    datums <- utxosDatums utxos'
+    gyLogInfo' "" $ printf "Min.pools.3.2 datums %s" (show datums)    
+--     dList <- itoList datums
+
+    pure $ go $ snd <$> Map.toList datums
+        where
+            go :: [(GYAddress, GYValue, UniswapDatum)] -> [((Coin A, Amount A), (Coin B, Amount B))]
+            go [] = []
+            go (x@(adr, val, d) : xs) = do
+                case d of
+                    Pool lp _ -> do
+                        let v = valueToPlutus val
+                            coinA = lpCoinA lp
+                            coinB = lpCoinB lp
+                            amtA  = amountOf v coinA
+                            amtB  = amountOf v coinB
+                            s     = ((coinA, amtA), (coinB, amtB))
+                        -- gyLogInfo' "" $ printf "Min.pools.4.Found %s" (show s)
+                        let ss = go xs
+                        s : ss
+                        --return s
+                    _ -> go xs
+                   -- _ -> go xs
+
+{-
+    pure $ go [x | x <- dList]
+            where
+                go :: [(GYTxOutRef, (GYAddress, GYValue, UniswapDatum))] -> [((Coin A, Amount A), (Coin B, Amount B))]
+                go [] = []
+                go ((ref, (adr, val, d)) : xs) = do
+                    case d of
+                        Pool lp _ -> do
+                            let v = valueToPlutus val
+                                coinA = lpCoinA lp
+                                coinB = lpCoinB lp
+                                amtA  = amountOf v coinA
+                                amtB  = amountOf v coinB
+                                s     = ((coinA, amtA), (coinB, amtB))
+                            -- gyLogInfo' "" $ printf "Min.pools.4.Found %s" (show s)
+                            --ss <- go xs
+                            --return $ s : ss
+                            return s
+                        _ -> go xs
+
+    let utxos' = 
+                  [ (utxoValue) 
+                  | GYUTxO {utxoValue, utxoOutDatum} <- utxosToList utxos,
+                  isUnity (valueToPlutus utxoValue) c,
+                    ]
+    gyLogInfo' "" $ printf "Min.pools.3 utxos' %s" (show utxos')
+
+
+    let utxos'' = 
+                  [ (utxoValue) 
+                  | GYUTxO {utxoValue, utxoOutDatum} <- utxosToList utxos',
+                  isUnity (valueToPlutus utxoValue) c
+                    ]
+    gyLogInfo' "" $ printf "Min.pools.3 utxos' %s" (show utxos'')    
+
+    return mempty
+
+    let utxos' = filterUTxOs 
+                    (\GYUTxO {utxoValue} -> isUnity (valueToPlutus utxoValue) c) 
+                    utxos
+    gyLogInfo' "" $ printf "Min.pools.3 utxos' %s" (show utxos')
+-}
+
 
 
 
