@@ -297,6 +297,46 @@
             ],
             "type": "object"
         },
+        "ListPoolParams": {
+            "properties": {
+                "lppFactoryAssetClass": {
+                    "$ref": "#/definitions/GYAssetClass"
+                }
+            },
+            "required": [
+                "lppFactoryAssetClass"
+            ],
+            "type": "object"
+        },
+        "ListPoolResponse": {
+            "properties": {
+                "lprList": {
+                    "items": {
+                        "$ref": "#/definitions/SinglePoolResponse"
+                    },
+                    "type": "array"
+                }
+            },
+            "required": [
+                "lprList"
+            ],
+            "type": "object"
+        },
+        "SinglePoolResponse": {
+            "properties": {
+                "sprCoinA": {
+                    "$ref": "#/definitions/GYValue"
+                },
+                "sprCoinB": {
+                    "$ref": "#/definitions/GYValue"
+                }
+            },
+            "required": [
+                "sprCoinA",
+                "sprCoinB"
+            ],
+            "type": "object"
+        },
         "StartFactoryParams": {
             "properties": {
                 "spfAssetClass": {
@@ -515,6 +555,37 @@
                         "description": "",
                         "schema": {
                             "$ref": "#/definitions/CreatePoolResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid `body`"
+                    }
+                }
+            }
+        },
+        "/dex/pool/list": {
+            "post": {
+                "consumes": [
+                    "application/json;charset=utf-8"
+                ],
+                "parameters": [
+                    {
+                        "in": "body",
+                        "name": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/ListPoolParams"
+                        }
+                    }
+                ],
+                "produces": [
+                    "application/json;charset=utf-8"
+                ],
+                "responses": {
+                    "200": {
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/ListPoolResponse"
                         }
                     },
                     "400": {

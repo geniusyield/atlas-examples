@@ -12,6 +12,8 @@ import qualified GeniusYield.Examples.Limbo     as Limbo
 import           GeniusYield.Imports
 import           GeniusYield.Types
 import           Servant
+import Plutus.V1.Ledger.Value (assetClassValue, Value)
+import GeniusYield.TxBuilder (valueFromPlutus')
 
 data TokenParams = TokenParams
   { tpName        :: !GYTokenName
@@ -93,6 +95,20 @@ data ClosePoolResponse = ClosePoolResponse
     clprUnsignedTxResponse :: !UnsignedTxResponse
   } deriving (Show, Generic, FromJSON, ToJSON, Swagger.ToSchema)
 
+data ListPoolParams = ListPoolParams
+  { lppFactoryAssetClass  :: !GYAssetClass
+  } deriving (Show, Generic, FromJSON, Swagger.ToSchema)
+
+data SinglePoolResponse = SinglePoolResponse {
+  sprCoinA :: !GYValue,
+  sprCoinB :: !GYValue
+  } deriving (Show, Generic, FromJSON, ToJSON, Swagger.ToSchema)
+
+data ListPoolResponse = ListPoolResponse
+  { 
+    lprList :: ![SinglePoolResponse]
+  } deriving (Show, Generic, FromJSON, ToJSON, Swagger.ToSchema)
+
 
 data StartFactoryResponse = StartFactoryResponse
   { srfUnsignedTxResponse :: !UnsignedTxResponse
@@ -138,6 +154,9 @@ type DexApi =
   :<|> "pool" :> "close"
     :> ReqBody '[JSON] ClosePoolParams
     :> Post    '[JSON] ClosePoolResponse
+  :<|> "pool" :> "list"
+    :> ReqBody '[JSON] ListPoolParams
+    :> Post    '[JSON] ListPoolResponse
   :<|> "wallet" :> "balance"
     :> ReqBody '[JSON] ListBalanceParams
     :> Post    '[JSON] ListBalanceResponse
@@ -154,6 +173,7 @@ handleDexApi ctx =   handleStart ctx
                 :<|> handleListFactory ctx
                 :<|> handleCreatePool ctx
                 :<|> handleClosePool ctx
+                :<|> handleListPool ctx
                 :<|> handleListBalance ctx
                 :<|> handleCreateDatumToken ctx
                 :<|> handleHello ctx
@@ -200,6 +220,21 @@ handleClosePool ctx ClosePoolParams{..} = do
                   (Script'.Coin $ assetClassToPlutus clppTokenAAssetClass)
                   (Script'.Coin $ assetClassToPlutus clppTokenBAssetClass)
   pure $ ClosePoolResponse (unSignedTxWithFee txBody Nothing)
+
+
+handleListPool :: Ctx -> ListPoolParams -> IO ListPoolResponse
+handleListPool ctx ListPoolParams{..} = do
+  let us   = uniswap lppFactoryAssetClass
+  poolsList <- runQuery ctx $ poolsGY us 
+
+  pure $ ListPoolResponse (go poolsList)
+    where 
+      go :: [(GYValue, GYValue)] -> [SinglePoolResponse]
+      go [] = []
+      go ((aV, bV) : xs) = do
+        let p' = SinglePoolResponse aV bV
+        p' : go xs
+
 
 
 handleListFactory :: Ctx -> ListFactoryParams -> IO ListFactoryResponse

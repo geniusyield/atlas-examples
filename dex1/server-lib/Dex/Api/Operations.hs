@@ -16,6 +16,7 @@ module Dex.Api.Operations
   , closePool
   , mShowUtxos
   , pools
+  , poolsGY
   ) where
 
 
@@ -32,6 +33,7 @@ import Plutus.V2.Ledger.Api (POSIXTime, CurrencySymbol, TxOutRef)
 import Dex.OnChain.Uniswap.Pool
 import Dex.OnChain.Uniswap.Types 
 import Dex.OnChain.Uniswap.Types as TTA
+import Plutus.V1.Ledger.Value (assetClassValue, Value)
 
 --import qualified Data.Type.Equality as LiquidityPool
 --import qualified PlutusTx as TT
@@ -215,6 +217,25 @@ closePool us coinA coinB = do
     gyLogInfo' "" $ printf "MIN.closePool.3 skeleton %s" (show txSkeleton)
 
     return txSkeleton
+
+
+poolsGY :: GYTxQueryMonad m => Uniswap -> m [(GYValue, GYValue)]
+poolsGY us = do
+    list <- pools us
+
+    pure $ go list
+        where 
+        go :: [((Coin A, Amount A), (Coin B, Amount B))] -> [(GYValue, GYValue)]
+        go [] = []
+        go (((aC, aA), (bC, bA)) : xs) = do
+            let
+                aV = assetClassValue (unCoin aC) (unAmount aA)
+                bV = assetClassValue (unCoin bC) (unAmount bA)
+            case valueFromPlutus aV of
+                Left _ -> go xs
+                Right a' -> case valueFromPlutus bV of
+                                Left _ -> go xs
+                                Right b' -> (a', b') : go xs
 
 pools :: GYTxQueryMonad m => Uniswap -> m [((Coin A, Amount A), (Coin B, Amount B))]
 pools us = do

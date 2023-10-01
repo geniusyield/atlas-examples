@@ -11,7 +11,7 @@ import           Test.Tasty                     (TestTree, testGroup)
 import           Plutus.Model
 import           Plutus.Model.Fork.TxExtra
 
-import           Dex.Api.Operations (mShowUtxos, mintTestTokens, createFactory, createPool, closePool, pools)
+import           Dex.Api.Operations (mShowUtxos, mintTestTokens, createFactory, createPool, closePool, pools, poolsGY)
 import           Dex.OnChain.Dex.Compiled
 
 import           GeniusYield.Test.Utils
@@ -63,6 +63,9 @@ showPools1 tn noOfTokens ws@Wallets{..} = do
                     poolsList <- pools us
                     liftRun $ logInfo $ printf "Min.CreatePool3 %s" (show poolsList)
                     liftRun $ logInfo $ printf "Min.CreatePool3.1 %s" (show $ length poolsList)
+                    poolsList <- poolsGY us
+                    liftRun $ logInfo $ printf "Min.CreatePool4 %s" (show poolsList)
+                    liftRun $ logInfo $ printf "Min.CreatePool4.1 %s" (show $ length poolsList)
                     return (ass1, tx1)
         liftRun $ logInfo $ printf "Min 1: b %s %s" ass tx
         liftRun $ logInfo $ printf "Min 2: diff %s" diff
