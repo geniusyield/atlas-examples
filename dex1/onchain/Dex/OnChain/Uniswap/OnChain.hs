@@ -24,12 +24,12 @@ import Dex.OnChain.Uniswap.Pool (calculateAdditionalLiquidity, calculateInitialL
 import Dex.OnChain.Uniswap.Types
 import Plutus.V2.Ledger.Api (Datum (Datum), DatumHash, OutputDatum (..), ScriptContext (..), TokenName,
                              TxInInfo (txInInfoResolved), TxInfo (txInfoInputs, txInfoMint),
-                             TxOut (txOutDatum, txOutValue), Value, UnsafeFromData(unsafeFromBuiltinData))
+                             TxOut (txOutDatum, txOutValue), Value, UnsafeFromData(unsafeFromBuiltinData), ScriptPurpose (Minting))
 import qualified Plutus.V2.Ledger.Contexts as V2
 import qualified PlutusTx
 import PlutusTx.Prelude
-import Plutus.V1.Ledger.Value (AssetClass(..), symbols, assetClass, flattenValue, CurrencySymbol)
-import Prelude (showList)
+import Plutus.V1.Ledger.Value (AssetClass(..), symbols, assetClass, flattenValue, CurrencySymbol, assetClassValueOf)
+import PlutusTx.Builtins.Class (stringToBuiltinString)
 
 
 
@@ -107,7 +107,10 @@ validateCreate Uniswap{..} c lps lp@LiquidityPool{..} ctx =
     traceIfFalse "Min VC 0: Uniswap coin not present" (isUnity (valueWithin $ findOwnInput' ctx) usCoin)     && -- 1.
     traceIfFalse "Min VC 1: " (unCoin lpCoinA /= unCoin lpCoinB)                                                             && -- 3.
     traceIfFalse "Min VC 2: " (notElem lp lps)                                                                                 && -- 4.
-    traceIfFalse "Min VC 3: "(isUnity minted c)              
+    traceIfFalse "Min VC 3: " (isUnity minted c) &&
+    traceIfFalse "Min VC 4: " (amountOf minted liquidityCoin' == liquidity)                                                  && -- 6.
+    traceIfFalse "Min VC 5: " (outA > 0)                                                                                     && -- 7.
+    traceIfFalse "Min VC 6: " (outB > 0)         
   where
     poolOutput :: TxOut
     poolOutput = case [o | o <- V2.getContinuingOutputs ctx, isUnity (txOutValue o) c] of
@@ -157,18 +160,58 @@ validateCreate Uniswap{..} c lps lp@LiquidityPool{..} ctx =
 validateCloseFactory :: Uniswap -> Coin PoolState -> [LiquidityPool] -> ScriptContext -> Bool
 validateCloseFactory Uniswap{..} c lps ctx =
     traceIfFalse "Uniswap coin not present" (isUnity (valueWithin $ findOwnInput' ctx) usCoin)                        && -- 1.
-    traceIfFalse "wrong mint value"        (txInfoMint info == negate (unitValue c <>  valueOf lC (snd lpLiquidity))) -- 2.
+    traceIfFalse "Min.VCF.poolVal incorrect" poolVal && -- 2.
+    traceIfFalse "Min.VCF.liqVal incorrect" liqVal && -- 2.
+    traceIfFalse "Min.VCF.liqVal2 incorrect" liqVal2 && -- 2.
+    traceIfFalse "Min.VCF.liqVal22 incorrect" liqVal22 && -- 2.
+    -- traceIfFalse liqVal4 liqVal3 && -- 2.
+    traceIfFalse "Min.VCF.liqVal23 incorrect" (ac c == ac lC) && -- 2.
+    traceIfFalse "Min.VCF.liqVal24 incorrect" liqVal24 && -- 2.
+    traceIfFalse "Min.VCF.liqVal3 incorrect" liqVal3 && -- 2.
+    traceIfFalse "MIN.VCF.wrong mint value"        (txInfoMint info == negate (unitValue c <>  valueOf lC (snd lpLiquidity))) -- 2.
+--    traceIfFalse "wrong mint value"        (txInfoMint info == negate (unitValue c <>  valueOf lC (snd lpLiquidity))) -- 2.
 
   where
     info :: TxInfo
     info = scriptContextTxInfo ctx
+
+    mints :: Value
+    mints = txInfoMint info
+
+    poolVal :: Bool
+    poolVal = assetClassValueOf mints (unCoin c) == -1
+
+    liqVal :: Bool
+    liqVal = unAmount (snd lpLiquidity) == 3
+
+    liqVal2 :: Bool
+    liqVal2 = foldr (||) False  [s == ac c | s <- symbols $ txInfoMint info]
+
+    liqVal22 :: Bool
+    liqVal22 = foldr (||) False  [s == ac lC | s <- symbols $ txInfoMint info]
+
+    ac :: Coin b -> CurrencySymbol
+    ac x = let AssetClass (cs, _) = unCoin x in cs
+
+    liqVal24 :: Bool
+    liqVal24 = (length . symbols $ txInfoMint info) == 2
+
+    liqVal3 :: Bool
+    liqVal3 = x== -3
+      where x = assetClassValueOf mints (unCoin lC)
+
+    --liqVal4 :: BuiltinString
+    --liqVal4 = stringToBuiltinString $ show (assetClassValueOf mints (unCoin lC))
+
+
+
 
     poolInput :: TxInInfo
     poolInput = case [ i
                      | i <- txInfoInputs info
                      , isUnity (valueWithin i) c
                      ] of
-        [i] -> i
+        [i] -> i -- traceError "MIN:VCF.PI"
         _   -> traceError "expected exactly one pool input"
 
     lpLiquidity :: (LiquidityPool, Amount Liquidity)
@@ -337,7 +380,9 @@ validateLiquidityMinting Uniswap{..} tn _ ctx
     case [ i
          | i <- txInfoInputs $ scriptContextTxInfo ctx
          , let v = valueWithin i
-         , isUnity v usCoin || isPSCUnity v
+         , isUnity v usCoin || isUnity v lpC
+         --  isUnity v lpC
+          --         , isUnity v usCoin || isPSCUnity v
          ] of
     [_]    -> True
     [_, _] -> True
@@ -349,12 +394,23 @@ validateLiquidityMinting Uniswap{..} tn _ ctx
 
     isPSCUnity :: Value -> Bool
     isPSCUnity v = foldr (||) False [isUnity v (lpCX cur) | a@(cur, m, n) <- flattenValue $ txInfoMint info]
+--    isPSCUnity v = foldr (||) False [isUnity v (lpCX cur) | a@(cur, m, n) <- flattenValue $ txInfoMint info]
 
     --[(cur', tn', amt'), (cur'', tn'', amt'')] = flattenValue $ txInfoMint info
 
     lpCX :: CurrencySymbol -> Coin PoolState
     lpCX cur = Coin $ assetClass cur tn
 
+    lpC :: Coin PoolState
+    lpC = mkCoin (ownCurrencySymbol ctx) tn
+--    lpC = mkCoin (V2.ownCurrencySymbol ctx) tn
+
+    -- isPSCUnity2 :: Value -> Bool
+    -- isPSCUnity2 = 
+
+    ownCurrencySymbol :: ScriptContext -> CurrencySymbol
+    ownCurrencySymbol ScriptContext{scriptContextPurpose=Minting cs} = cs
+    ownCurrencySymbol _                                              = traceError "Lh" -- "Can't get currency symbol of the current validator script"
 
 
  {-
@@ -384,7 +440,7 @@ validateLiquidityMinting Uniswap{..} tn _ ctx
 
     lpC :: Coin PoolState
     lpC = Coin $ assetClass cur' tn
--}    
+-}
 --  True
     --let
 --    traceError "MIN 0: pool state minting without Uniswap input" 

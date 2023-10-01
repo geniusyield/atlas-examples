@@ -117,6 +117,7 @@ data LiquidityPool = LiquidityPool
     , lpCoinB :: Coin B
     }
     deriving (Haskell.Show, Generic, Data)
+
 PlutusTx.makeIsDataIndexed ''LiquidityPool [('LiquidityPool, 0)]
 PlutusTx.makeLift ''LiquidityPool
 
@@ -125,6 +126,12 @@ instance Eq LiquidityPool where
     x == y = (lpCoinA x == lpCoinA y && lpCoinB x == lpCoinB y) ||
               -- Make sure the underlying coins aren't equal.
              (unCoin (lpCoinA x) == unCoin (lpCoinB y) && unCoin (lpCoinB x) == unCoin (lpCoinA y))
+
+instance Haskell.Eq LiquidityPool where
+    x == y = (lpCoinA x == lpCoinA y && lpCoinB x == lpCoinB y) ||
+              -- Make sure the underlying coins aren't equal.
+             (unCoin (lpCoinA x) == unCoin (lpCoinB y) && unCoin (lpCoinB x) == unCoin (lpCoinA y))
+
 
 data UniswapAction = Create LiquidityPool | Close | Swap | Remove | Add
     deriving Haskell.Show

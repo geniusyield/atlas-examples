@@ -1,6 +1,5 @@
 {-# LANGUAGE TemplateHaskell            #-}
 {-# LANGUAGE LambdaCase #-}
-{-# LANGUAGE FlexibleContexts #-}
 
 module Dex.Api.Operations
   ( mintTestTokens
@@ -14,6 +13,7 @@ module Dex.Api.Operations
   , UniswapDatum(..)
   , listBalance'
   , createPool
+  , closePool
   , mShowUtxos
   ) where
 
@@ -25,27 +25,24 @@ import           GeniusYield.Types.UTxO (GYUTxOs)
 import Dex.Api.Scripts
 import qualified Data.Map.Strict       as Map
 import           Dex.OnChain.Dex.Compiled
-import Dex.OnChain.Uniswap.Uniswap.Compiled
-    ( isUnity,
-      unitValue,
-      Coin(..),
-      PoolState,
-      UniswapDatum(..),
-      uniswapValidator,
-      Uniswap(..), LiquidityPool(..), Amount, Liquidity,
-      A, B, U,
-      Amount(unAmount), UniswapAction (..)
-       )
 import qualified Dex.OnChain.Uniswap.Uniswap.Compiled as LQS
 import Data.Data (typeOf)
 import Plutus.V2.Ledger.Api (POSIXTime, CurrencySymbol, TxOutRef)
 import Dex.OnChain.Uniswap.Pool
+import Dex.OnChain.Uniswap.Types 
+import Dex.OnChain.Uniswap.Types as TTA
+
+--import qualified Data.Type.Equality as LiquidityPool
+--import qualified PlutusTx as TT
+--import PlutusTx.Prelude as TT2
+
+
 
 poolStateTokenName :: GYTokenName
 poolStateTokenName = "Pool State"
 
 uniswapValidator' :: Uniswap -> GYValidator 'PlutusV2
-uniswapValidator' us = validatorFromPlutus $ uniswapValidator us (poolStateCoin us)
+uniswapValidator' us = validatorFromPlutus $ LQS.uniswapValidator us (poolStateCoin us)
 
 uniswapAddress :: (HasCallStack, GYTxQueryMonad m) => Uniswap -> m GYAddress
 uniswapAddress us = scriptAddress $ uniswapValidator' us 
@@ -102,21 +99,20 @@ createPool addr us coinA amountA coinB amountB = do
     let usInst      = uniswapValidator' us
         usDat1      = Factory $ lp : lps
         usDat2      = Pool lp liquidity
+        usC         = usCoin us
         psC         = poolStateCoin us
-        lC          = mkCoin (liquidityCurrency us) $ lpTicker lp
-        usVal       = unitValue $ usCoin us
-        lpVal       = unitValue psC  <> LQS.valueOf coinA amountA <> LQS.valueOf coinB amountB
+        lCur        = liquidityCurrency us
+        lC          = mkCoin lCur $ lpTicker lp
+    usVal      <- valueFromPlutus' (unitValue usC)
+    lpVal      <- valueFromPlutus' (unitValue psC  <> LQS.valueOf coinA amountA <> LQS.valueOf coinB amountB)
     scriptAddr <- uniswapAddress us 
 
     gyLogInfo' "" $ printf "createPool 4"
 
-    usCVal <- valueFromPlutus' usVal
-    lpCVal <- valueFromPlutus' lpVal
-
     gyLogInfo' "" $ printf "createPool 5"
     lpTokenName <- tokenNameFromPlutus' $ lpTicker lp
     let 
-        liquidityPolicy'' = liquidityPolicy' us lpTokenName
+        --liquidityPolicy'' = liquidityPolicy' us lpTokenName
         psLiquidityPolicy = liquidityPolicy' us poolStateTokenName
     gyLogInfo' "" $ printf "createPool 6"
     
@@ -141,7 +137,7 @@ createPool addr us coinA amountA coinB amountB = do
 
                   <> mustHaveOutput (GYTxOut
                     { gyTxOutAddress = scriptAddr
-                    , gyTxOutValue = lpCVal
+                    , gyTxOutValue = lpVal
                     --, gyTxOutDatum = Nothing
                     , gyTxOutDatum = Just (datumFromPlutusData usDat2, GYTxOutUseInlineDatum)
                     , gyTxOutRefS    = Nothing
@@ -150,12 +146,12 @@ createPool addr us coinA amountA coinB amountB = do
                   -- <> skel    
                   <> mustHaveOutput (GYTxOut
                     { gyTxOutAddress = scriptAddr
-                    , gyTxOutValue = usCVal
+                    , gyTxOutValue = usVal
                     --, gyTxOutDatum = Nothing
                     , gyTxOutDatum = Just (datumFromPlutusData usDat1, GYTxOutUseInlineDatum)
                     , gyTxOutRefS    = Nothing
                     })     
-                  <> mustMint liquidityPolicy'' unitRedeemer lpTokenName (unAmount liquidity) 
+                  <> mustMint psLiquidityPolicy unitRedeemer lpTokenName (unAmount liquidity) 
 {-
 
 -}  
@@ -165,6 +161,61 @@ createPool addr us coinA amountA coinB amountB = do
     --gyLogInfo' "" $ printf "createPool 7.1 Skeleton: %s" txSkeleton
     gyLogInfo' "" $ printf "createPool 8"
     return txSkeleton
+
+closePool :: GYTxMonad m
+               => Uniswap
+               -> Coin A
+               -> Coin B
+               -> m (GYTxSkeleton 'PlutusV2)
+closePool us coinA coinB = do
+    gyLogInfo' "" $ printf "MIN.closePool.1"
+    ((oref1, lps), (oref2, lp, liquidity)) <- findUniswapFactoryAndPool us coinA coinB
+    gyLogInfo' "" $ printf "MIN.closePool.1.1 %s %s" (show oref1) (show lps)
+    gyLogInfo' "" $ printf "MIN.closePool.1.2 %s %s %s" (show oref2) (show lp) (show liquidity)
+    let usInst      = uniswapValidator' us
+        usDat       = Factory $ filter (/= lp) lps
+        usC         = usCoin us
+        psC         = poolStateCoin us
+        lC          = mkCoin (liquidityCurrency us) $ lpTicker lp
+        lVal        = redeemerFromPlutusData Close
+    usVal       <- valueFromPlutus' (unitValue usC)
+    psVal       <- valueFromPlutus' (unitValue psC)
+    scriptAddr <- uniswapAddress us 
+    gyLogInfo' "" $ printf "MIN.closePool.2"
+
+    lpTokenName <- tokenNameFromPlutus' $ lpTicker lp
+    let 
+        --liquidityPolicy'' = liquidityPolicy' us lpTokenName
+        psLiquidityPolicy = liquidityPolicy' us poolStateTokenName    
+    let 
+        txSkeleton =
+                  mustMint psLiquidityPolicy unitRedeemer poolStateTokenName (negate 1)
+                  <> mustMint psLiquidityPolicy unitRedeemer lpTokenName (negate(unAmount liquidity))
+                  <> mustHaveInput (GYTxIn { gyTxInTxOutRef = oref1
+                                            , gyTxInWitness  = GYTxInWitnessScript
+                                                (GYInScript usInst)
+                                                (datumFromPlutusData (Factory lps))
+                                                lVal
+                                            })
+                  <> mustHaveInput (GYTxIn { gyTxInTxOutRef = oref2
+                                            , gyTxInWitness  = GYTxInWitnessScript
+                                                (GYInScript usInst)
+                                                (datumFromPlutusData (Pool lp liquidity))
+                                                lVal
+                                            })
+                  <> mustHaveOutput (GYTxOut
+                    { gyTxOutAddress = scriptAddr
+                    , gyTxOutValue = usVal
+                    --, gyTxOutDatum = Nothing
+                    , gyTxOutDatum = Just (datumFromPlutusData usDat, GYTxOutUseInlineDatum)
+                    , gyTxOutRefS    = Nothing
+                    })
+
+    gyLogInfo' "" $ printf "MIN.closePool.3 skeleton %s" (show txSkeleton)
+
+    return txSkeleton
+
+
 
 findUniswapInstance :: (HasCallStack, GYTxMonad m )
                        => Uniswap -> Coin b 
@@ -191,12 +242,34 @@ findUniswapFactory us@Uniswap{..} = findUniswapInstance us usCoin $ \case
     Factory lps -> Just lps
     Pool _ _    -> Nothing
 
-
-findUniswapPool :: (GYTxMonad m, Eq LiquidityPool) => Uniswap -> LiquidityPool -> m (GYTxOutRef, Amount Liquidity)
+findUniswapPool :: GYTxMonad m => Uniswap -> LiquidityPool -> m (GYTxOutRef, Amount Liquidity)
 findUniswapPool us lp = findUniswapInstance us (poolStateCoin us) $ \case
         Pool lp' l
             | lp == lp' -> Just l
         _               -> Nothing
+
+
+findUniswapFactoryAndPool :: GYTxMonad m =>
+                          Uniswap
+                          -> Coin A
+                          -> Coin B
+                          -> m ( (GYTxOutRef, [LiquidityPool])
+                               , (GYTxOutRef, LiquidityPool, Amount Liquidity)
+                               )
+findUniswapFactoryAndPool us coinA coinB = do
+    (oref1, lps) <- findUniswapFactory us
+    case [ lp'
+         | lp' <- lps
+         , lp' == LiquidityPool coinA coinB
+         ] of
+        [lp] -> do
+            (oref2, a) <- findUniswapPool us lp
+            return ( (oref1, lps)
+                   , (oref2, lp, a)
+                   )
+        _    -> error "liquidity pool not found"
+
+
 
 
 listFactory :: GYTxQueryMonad m 

@@ -11,7 +11,7 @@ import           Test.Tasty                     (TestTree, testGroup)
 import           Plutus.Model
 import           Plutus.Model.Fork.TxExtra
 
-import           Dex.Api.Operations (mShowUtxos, mintTestTokens, createFactory, createPool)
+import           Dex.Api.Operations (mShowUtxos, mintTestTokens, createFactory, createPool, closePool)
 import           Dex.OnChain.Dex.Compiled
 
 import           GeniusYield.Test.Utils
@@ -26,11 +26,52 @@ import Data.Either (rights)
 import GeniusYield.Imports (printf)
 import Dex.Api.Dex (uniswap)
 import qualified Dex.OnChain.Uniswap.Types as Script'
+import Dex.OnChain.Uniswap.Uniswap.Compiled
 
 createTokenTests :: TestTree
 createTokenTests = testGroup "Create Token Test"
-    [ testRun "Balance checks after create pool" $ createPool1 "minTokenUS" 1 ]
+    [ testRun "Balance checks after create pool" $ closePool1 "minTokenUS" 1 ]
 --    [ testRun "Balance checks after create token" $ createTrace4 "minToken" 1 ]
+
+
+
+closePool1 :: String -> Natural -> Wallets -> Run ()
+closePool1 tn noOfTokens ws@Wallets{..} = do
+    void $ runWallet w1 $ do 
+        addr <- ownAddress
+        (b@(ass, tx), diff) <- withBalance (walletName w1) w1 $ do
+                    b@(ass, tx) <- createTokenRun4 tn' noOfTokens
+                    let us   = uniswap ass
+                    factorySkeleton <- createFactory us
+                    factoryTx <- sendSkeleton factorySkeleton
+                    poolSkeleton <- createPool addr us 
+                        (Script'.Coin fakeGold)
+                        (Script'.Amount 4) 
+                        (Script'.Coin fakeIron)
+                        (Script'.Amount 2)     
+                    liftRun $ logInfo $ printf "Min.CreatePool1.1"
+                    balw1 <- (balance w1)
+                    liftRun $ logInfo $ printf "Min.CreatePool1.1.w1 %s" balw1
+                    poolTx <- sendSkeleton poolSkeleton
+                    liftRun $ logInfo $ printf "Min.CreatePool2.1"
+                    balw1 <- (balance w1)
+                    liftRun $ logInfo $ printf "Min.CreatePool2.1.w1 %s" balw1
+                    empty <- mShowUtxos us
+
+                    liftRun $ logInfo $ printf "Min.ClosePool.BeforeCall"
+                    closeSkeleton <- closePool us 
+                        (Script'.Coin fakeGold)
+                        (Script'.Coin fakeIron)
+                    closeTx <- sendSkeleton closeSkeleton
+                    liftRun $ logInfo $ printf "Min.ClosePool.afterCall"
+                    return b
+        liftRun $ logInfo $ printf "Min 1: b %s %s" ass tx
+        liftRun $ logInfo $ printf "Min 2: diff %s" diff
+        return (b, diff)                                
+            where
+                tn' :: GYTokenName
+                tn' = fromString tn
+
 
 createTokenRun4 :: GYTokenName -> Natural -> GYTxMonadRun (GYAssetClass, GYTxId)
 createTokenRun4 tn noOfTokens = do
