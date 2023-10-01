@@ -1,5 +1,39 @@
 {
     "definitions": {
+        "ClosePoolParams": {
+            "properties": {
+                "clppFactoryAssetClass": {
+                    "$ref": "#/definitions/GYAssetClass"
+                },
+                "clppGPParams": {
+                    "$ref": "#/definitions/GeneralParams"
+                },
+                "clppTokenAAssetClass": {
+                    "$ref": "#/definitions/GYAssetClass"
+                },
+                "clppTokenBAssetClass": {
+                    "$ref": "#/definitions/GYAssetClass"
+                }
+            },
+            "required": [
+                "clppGPParams",
+                "clppFactoryAssetClass",
+                "clppTokenAAssetClass",
+                "clppTokenBAssetClass"
+            ],
+            "type": "object"
+        },
+        "ClosePoolResponse": {
+            "properties": {
+                "clprUnsignedTxResponse": {
+                    "$ref": "#/definitions/UnsignedTxResponse"
+                }
+            },
+            "required": [
+                "clprUnsignedTxResponse"
+            ],
+            "type": "object"
+        },
         "CreatePoolParams": {
             "properties": {
                 "cppFactoryAssetClass": {
@@ -419,6 +453,37 @@
                         "description": "",
                         "schema": {
                             "$ref": "#/definitions/ListFactoryResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid `body`"
+                    }
+                }
+            }
+        },
+        "/dex/pool/close": {
+            "post": {
+                "consumes": [
+                    "application/json;charset=utf-8"
+                ],
+                "parameters": [
+                    {
+                        "in": "body",
+                        "name": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/ClosePoolParams"
+                        }
+                    }
+                ],
+                "produces": [
+                    "application/json;charset=utf-8"
+                ],
+                "responses": {
+                    "200": {
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/ClosePoolResponse"
                         }
                     },
                     "400": {

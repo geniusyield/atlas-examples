@@ -81,6 +81,19 @@ data CreatePoolResponse = CreatePoolResponse
     cprUnsignedTxResponse :: !UnsignedTxResponse
   } deriving (Show, Generic, FromJSON, ToJSON, Swagger.ToSchema)
 
+data ClosePoolParams = ClosePoolParams
+  { clppGPParams  :: !GeneralParams
+  , clppFactoryAssetClass  :: !GYAssetClass
+  , clppTokenAAssetClass :: !GYAssetClass
+  , clppTokenBAssetClass :: !GYAssetClass
+  } deriving (Show, Generic, FromJSON, Swagger.ToSchema)
+
+data ClosePoolResponse = ClosePoolResponse
+  { 
+    clprUnsignedTxResponse :: !UnsignedTxResponse
+  } deriving (Show, Generic, FromJSON, ToJSON, Swagger.ToSchema)
+
+
 data StartFactoryResponse = StartFactoryResponse
   { srfUnsignedTxResponse :: !UnsignedTxResponse
   } deriving (Show, Generic, FromJSON, ToJSON, Swagger.ToSchema)
@@ -122,6 +135,9 @@ type DexApi =
   :<|> "pool" :> "create"
     :> ReqBody '[JSON] CreatePoolParams
     :> Post    '[JSON] CreatePoolResponse
+  :<|> "pool" :> "close"
+    :> ReqBody '[JSON] ClosePoolParams
+    :> Post    '[JSON] ClosePoolResponse
   :<|> "wallet" :> "balance"
     :> ReqBody '[JSON] ListBalanceParams
     :> Post    '[JSON] ListBalanceResponse
@@ -137,6 +153,7 @@ handleDexApi ctx =   handleStart ctx
                 :<|> handleFactory ctx
                 :<|> handleListFactory ctx
                 :<|> handleCreatePool ctx
+                :<|> handleClosePool ctx
                 :<|> handleListBalance ctx
                 :<|> handleCreateDatumToken ctx
                 :<|> handleHello ctx
@@ -174,6 +191,16 @@ handleCreatePool ctx CreatePoolParams{..} = do
                   (Script'.Coin $ assetClassToPlutus cppTokenBAssetClass)
                   (Script'.Amount cppTokenBAmount)  
   pure $ CreatePoolResponse (unSignedTxWithFee txBody Nothing)
+
+handleClosePool :: Ctx -> ClosePoolParams -> IO ClosePoolResponse
+handleClosePool ctx ClosePoolParams{..} = do
+  txBody <- runTxI ctx (gpUsedAddrs clppGPParams) (gpChangeAddr clppGPParams) (gpCollateral clppGPParams)
+              $ closePool 
+                  (uniswap clppFactoryAssetClass)
+                  (Script'.Coin $ assetClassToPlutus clppTokenAAssetClass)
+                  (Script'.Coin $ assetClassToPlutus clppTokenBAssetClass)
+  pure $ ClosePoolResponse (unSignedTxWithFee txBody Nothing)
+
 
 handleListFactory :: Ctx -> ListFactoryParams -> IO ListFactoryResponse
 handleListFactory ctx ListFactoryParams{..} = do
