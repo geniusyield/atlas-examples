@@ -19,6 +19,7 @@ module Dex.Api.Operations
   , poolsGY
   , funds
   , remove
+  , add
   ) where
 
 
@@ -236,19 +237,16 @@ remove us coinA coinB rpDiff = do
     when (rpDiff < 1 || rpDiff >= liquidity) $ error "removed liquidity must be positive and less than total liquidity"
     let usInst      = uniswapValidator' us
         usDat       = Pool lp $ liquidity - rpDiff
-        usC         = usCoin us
         psC         = poolStateCoin us
-        lC          = mkCoin (liquidityCurrency us) $ lpTicker lp
         redeemer    = redeemerFromPlutusData Remove
         v'          = valueToPlutus v
         inA         = amountOf v' coinA
         inB         = amountOf v' coinB
         (outA, outB) = calculateRemoval inA inB liquidity rpDiff
-    psVal       <- valueFromPlutus' (unitValue psC)
-    lVal        <- valueFromPlutus' (valueOf lC rpDiff)
+        val          = unitValue psC <> valueOf coinA outA <> valueOf coinB outB
+        psLiquidityPolicy = liquidityPolicy' us poolStateTokenName    
     scriptAddr <- uniswapAddress us 
     let 
-        val          = unitValue psC <> valueOf coinA outA <> valueOf coinB outB
     val' <- valueFromPlutus' val
 
     gyLogInfo' "" $ printf "MIN.remove.2.1 coinA:%s coinB:%s" (show coinA) (show coinB)
@@ -256,8 +254,6 @@ remove us coinA coinB rpDiff = do
 
     lpTokenName <- tokenNameFromPlutus' $ lpTicker lp
     let 
-        --liquidityPolicy'' = liquidityPolicy' us lpTokenName
-        psLiquidityPolicy = liquidityPolicy' us poolStateTokenName    
     let 
         txSkeleton =
                   mustMint psLiquidityPolicy unitRedeemer lpTokenName (negate $ unAmount rpDiff)
@@ -276,6 +272,58 @@ remove us coinA coinB rpDiff = do
                     })
 
     gyLogInfo' "" $ printf "MIN.remove.3 skeleton %s" (show txSkeleton)
+
+    return txSkeleton
+
+add :: GYTxMonad m
+               => Uniswap
+               -> Coin A -> Amount A
+               -> Coin B -> Amount B
+               -> m (GYTxSkeleton 'PlutusV2)
+add us coinA amountA coinB amountB = do
+    gyLogInfo' "" $ printf "MIN.add.1 us:%s" (show us)
+    gyLogInfo' "" $ printf "MIN.add.1.1 coinA:%s AmountA: %s" (show coinA) (show amountA)
+    gyLogInfo' "" $ printf "MIN.add.1.2 coinB:%s AmountB: %s" (show coinB) (show amountB)
+    ((_, _, _), (oref, v, lp, liquidity)) <- findUniswapFactoryAndPool us coinA coinB
+    gyLogInfo' "" $ printf "MIN.add.1.3 %s %s %s %s" (show oref) (show v) (show lp) (show liquidity)
+    let usInst      = uniswapValidator' us
+        psC         = poolStateCoin us
+        redeemer    = redeemerFromPlutusData Add
+        v'          = valueToPlutus v
+        oldA        = amountOf v' coinA
+        oldB        = amountOf v' coinB
+        newA        = oldA + amountA
+        newB        = oldB + amountB
+        delL        = calculateAdditionalLiquidity oldA oldB liquidity amountA amountB
+        usDat       = Pool lp $ liquidity + delL
+        val         = unitValue psC <> valueOf coinA newA <> valueOf coinB newB
+        psLiquidityPolicy = liquidityPolicy' us poolStateTokenName  
+    gyLogInfo' "" $ printf "MIN.add.1.4 delL:%s" (show delL)
+    when (delL <= 0) $ error "insufficient liquidity"  
+    gyLogInfo' "" $ printf "MIN.add.1.5 oldA:%s oldB:%s newA:%s newB:%s" (show oldA) (show oldB) (show newA) (show newB)
+
+    scriptAddr <- uniswapAddress us 
+    val' <- valueFromPlutus' val
+
+    lpTokenName <- tokenNameFromPlutus' $ lpTicker lp
+    let 
+        txSkeleton =
+                     mustMint psLiquidityPolicy unitRedeemer lpTokenName (unAmount delL) 
+                  <> mustHaveInput (GYTxIn { gyTxInTxOutRef = oref
+                                            , gyTxInWitness  = GYTxInWitnessScript
+                                                (GYInScript usInst)
+                                                (datumFromPlutusData (Pool lp liquidity))
+                                                redeemer
+                                            })
+                  <> mustHaveOutput (GYTxOut
+                    { gyTxOutAddress = scriptAddr
+                    , gyTxOutValue = val'
+                    --, gyTxOutDatum = Nothing
+                    , gyTxOutDatum = Just (datumFromPlutusData usDat, GYTxOutUseInlineDatum)
+                    , gyTxOutRefS    = Nothing
+                    })
+
+    gyLogInfo' "" $ printf "MIN.add.3 skeleton %s" (show txSkeleton)
 
     return txSkeleton
 
