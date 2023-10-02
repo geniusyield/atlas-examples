@@ -132,18 +132,28 @@ data HelloWorldDataResponse = HelloWorldDataResponse
 
 -- | Parameters for the @remove@-endpoint, which removes some liquidity from a liquidity pool.
 data RemoveParams = RemoveParams
-    { rpCoinA :: !GYAssetClass           -- ^ One 'Coin' of the liquidity pair.
+    { rpGPParams  :: !GeneralParams
+    , rpFactoryAssetClass  :: !GYAssetClass
+    , rpCoinA :: !GYAssetClass           -- ^ One 'Coin' of the liquidity pair.
     , rpCoinB :: !GYAssetClass           -- ^ The other 'Coin' of the liquidity pair.
     , rpDiff  :: !Integer -- ^ The amount of liquidity tokens to burn in exchange for liquidity from the pool.
-    } deriving (Show, Generic, ToJSON, FromJSON)
+  } deriving (Show, Generic, FromJSON, Swagger.ToSchema)
 
 -- | Parameters for the @add@-endpoint, which adds liquidity to a liquidity pool in exchange for liquidity tokens.
 data AddParams = AddParams
-    { apCoinA   :: GYAssetClass         -- ^ One 'Coin' of the liquidity pair.
+    { apGPParams  :: !GeneralParams
+    , apFactoryAssetClass  :: !GYAssetClass
+    , apCoinA   :: GYAssetClass         -- ^ One 'Coin' of the liquidity pair.
     , apCoinB   :: GYAssetClass         -- ^ The other 'Coin' of the liquidity pair.
     , apAmountA :: !Integer       -- ^ The amount of coins of the first kind to add to the pool.
     , apAmountB :: !Integer       -- ^ The amount of coins of the second kind to add to the pool.
-    } deriving (Show, Generic, ToJSON, FromJSON)
+  } deriving (Show, Generic, FromJSON, Swagger.ToSchema)
+
+data DefaultTxResponse = DefaultTxResponse
+  { 
+    unsignedTxResponse :: !UnsignedTxResponse
+  } deriving (Show, Generic, FromJSON, ToJSON, Swagger.ToSchema)
+
 
 -- | Construct `UnsignedTxResponse` return type for our endpoint given the transaction body & relevant index for UTxO (if such exists).
 unSignedTxWithFee :: GYTxBody -> Maybe Word -> UnsignedTxResponse
@@ -172,6 +182,12 @@ type DexApi =
   :<|> "pool" :> "list"
     :> ReqBody '[JSON] ListPoolParams
     :> Post    '[JSON] ListPoolResponse
+  :<|> "pool" :> "remove"
+    :> ReqBody '[JSON] RemoveParams
+    :> Post    '[JSON] DefaultTxResponse
+  :<|> "pool" :> "add"
+    :> ReqBody '[JSON] AddParams
+    :> Post    '[JSON] DefaultTxResponse
   :<|> "wallet" :> "balance"
     :> ReqBody '[JSON] ListBalanceParams
     :> Post    '[JSON] ListBalanceResponse
@@ -189,6 +205,8 @@ handleDexApi ctx =   handleStart ctx
                 :<|> handleCreatePool ctx
                 :<|> handleClosePool ctx
                 :<|> handleListPool ctx
+                :<|> handleRemove ctx
+                :<|> handleAdd ctx
                 :<|> handleListBalance ctx
                 :<|> handleCreateDatumToken ctx
                 :<|> handleHello ctx
@@ -249,6 +267,30 @@ handleListPool ctx ListPoolParams{..} = do
       go ((aV, bV) : xs) = do
         let p' = SinglePoolResponse aV bV
         p' : go xs
+
+handleRemove :: Ctx -> RemoveParams -> IO DefaultTxResponse
+handleRemove ctx RemoveParams{..} = do
+  let us   = uniswap rpFactoryAssetClass
+  txBody <- runTxI ctx (gpUsedAddrs rpGPParams) (gpChangeAddr rpGPParams) (gpCollateral rpGPParams)
+              $ remove 
+                  us 
+                  (Script'.Coin $ assetClassToPlutus rpCoinA)
+                  (Script'.Coin $ assetClassToPlutus rpCoinB)
+                  (Script'.Amount rpDiff)  
+  pure $ DefaultTxResponse (unSignedTxWithFee txBody Nothing)
+
+
+handleAdd :: Ctx -> AddParams -> IO DefaultTxResponse
+handleAdd ctx AddParams{..} = do
+  let us   = uniswap apFactoryAssetClass
+  txBody <- runTxI ctx (gpUsedAddrs apGPParams) (gpChangeAddr apGPParams) (gpCollateral apGPParams)
+              $ add 
+                  us 
+                  (Script'.Coin $ assetClassToPlutus apCoinA)
+                  (Script'.Amount apAmountA)  
+                  (Script'.Coin $ assetClassToPlutus apCoinB)
+                  (Script'.Amount apAmountB)  
+  pure $ DefaultTxResponse (unSignedTxWithFee txBody Nothing)
 
 
 
