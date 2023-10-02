@@ -17,6 +17,7 @@ module Dex.Api.Operations
   , mShowUtxos
   , pools
   , poolsGY
+  , funds
   ) where
 
 
@@ -93,6 +94,8 @@ createPool :: GYTxMonad m
                -> m (GYTxSkeleton 'PlutusV2)
 createPool addr us coinA amountA coinB amountB = do
     gyLogInfo' "" $ printf "createPool 0 createPool us:%s coinA:%s amountA:%s coinB:%s amountB:%s" (show us) (show coinA) (show amountA) (show coinB) (show amountB)
+    when (unCoin coinA == unCoin coinB) $ error "coins must be different"
+    when (amountA <= 0 || amountB <= 0) $ error "amounts must be positive"
     (ref, lps) <- findUniswapFactory us
     gyLogInfo' "" $ printf "createPool 1 createPool re:%s datum:%s" (show ref) (show lps)
     let liquidity = calculateInitialLiquidity amountA amountB
@@ -217,6 +220,13 @@ closePool us coinA coinB = do
     gyLogInfo' "" $ printf "MIN.closePool.3 skeleton %s" (show txSkeleton)
 
     return txSkeleton
+
+
+funds :: GYTxQueryMonad m => GYAddress -> m GYValue
+funds addr = do
+    balance <- queryBalance addr
+    gyLogInfo' "" $ printf "Min.funds.1 balance %s" (show balance)
+    return balance
 
 
 poolsGY :: GYTxQueryMonad m => Uniswap -> m [(GYValue, GYValue)]
