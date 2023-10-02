@@ -149,6 +149,15 @@ data AddParams = AddParams
     , apAmountB :: !Integer       -- ^ The amount of coins of the second kind to add to the pool.
   } deriving (Show, Generic, FromJSON, Swagger.ToSchema)
 
+data SwapParams = SwapParams
+    { swpGPParams  :: !GeneralParams
+    , swpFactoryAssetClass  :: !GYAssetClass
+    , swpCoinA :: !GYAssetClass           -- ^ One 'Coin' of the liquidity pair.
+    , swpCoinB :: !GYAssetClass           -- ^ The other 'Coin' of the liquidity pair.
+    , swpAmountA :: !Integer       -- ^ The amount of coins of the first kind to add to the pool.
+    , swpAmountB :: !Integer       -- ^ The amount of coins of the second kind to add to the pool.
+  } deriving (Show, Generic, FromJSON, Swagger.ToSchema)
+
 data DefaultTxResponse = DefaultTxResponse
   { 
     unsignedTxResponse :: !UnsignedTxResponse
@@ -279,7 +288,6 @@ handleRemove ctx RemoveParams{..} = do
                   (Script'.Amount rpDiff)  
   pure $ DefaultTxResponse (unSignedTxWithFee txBody Nothing)
 
-
 handleAdd :: Ctx -> AddParams -> IO DefaultTxResponse
 handleAdd ctx AddParams{..} = do
   let us   = uniswap apFactoryAssetClass
@@ -290,6 +298,18 @@ handleAdd ctx AddParams{..} = do
                   (Script'.Amount apAmountA)  
                   (Script'.Coin $ assetClassToPlutus apCoinB)
                   (Script'.Amount apAmountB)  
+  pure $ DefaultTxResponse (unSignedTxWithFee txBody Nothing)
+
+handleSwap :: Ctx -> SwapParams -> IO DefaultTxResponse
+handleSwap ctx SwapParams{..} = do
+  let us   = uniswap swpFactoryAssetClass
+  txBody <- runTxI ctx (gpUsedAddrs swpGPParams) (gpChangeAddr swpGPParams) (gpCollateral swpGPParams)
+              $ swap 
+                  us 
+                  (Script'.Coin $ assetClassToPlutus swpCoinA)
+                  (Script'.Amount swpAmountA)  
+                  (Script'.Coin $ assetClassToPlutus swpCoinB)
+                  (Script'.Amount swpAmountB)  
   pure $ DefaultTxResponse (unSignedTxWithFee txBody Nothing)
 
 

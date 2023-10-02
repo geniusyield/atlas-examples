@@ -20,6 +20,7 @@ module Dex.Api.Operations
   , funds
   , remove
   , add
+  , swap
   ) where
 
 
@@ -327,6 +328,64 @@ add us coinA amountA coinB amountB = do
 
     return txSkeleton
 
+swap :: GYTxMonad m
+               => Uniswap
+               -> Coin A -> Amount A
+               -> Coin B -> Amount B
+               -> m (GYTxSkeleton 'PlutusV2)
+swap us coinA amountA coinB amountB = do
+    gyLogInfo' "" $ printf "MIN.swap.1 us:%s" (show us)
+    gyLogInfo' "" $ printf "MIN.swap.1.1 coinA:%s AmountA: %s" (show coinA) (show amountA)
+    gyLogInfo' "" $ printf "MIN.swap.1.2 coinB:%s AmountB: %s" (show coinB) (show amountB)
+    unless (amountA > 0 && amountB == 0 || amountA == 0 && amountB > 0) $ error "exactly one amount must be positive"
+    ((_, _, _), (oref, v, lp, liquidity)) <- findUniswapFactoryAndPool us coinA coinB
+    gyLogInfo' "" $ printf "MIN.swap.1.3 %s %s %s %s" (show oref) (show v) (show lp) (show liquidity)
+    let usInst      = uniswapValidator' us
+        psC         = poolStateCoin us
+        redeemer    = redeemerFromPlutusData Swap
+        usDat       = Pool lp liquidity
+        v'          = valueToPlutus v
+        oldA        = amountOf v' coinA
+        oldB        = amountOf v' coinB
+    (newA, newB) <- if amountA > 0 then do
+        let outB = Amount $ findSwapA oldA oldB amountA
+        when (outB == 0) $ error "no payout"
+        return (oldA + amountA, oldB - outB)
+                                     else do
+        let outA = Amount $ findSwapB oldA oldB amountB
+        when (outA == 0) $ error "no payout"
+        return (oldA - outA, oldB + amountB)
+    let
+        val         = unitValue psC <> valueOf coinA newA <> valueOf coinB newB
+        psLiquidityPolicy = liquidityPolicy' us poolStateTokenName  
+    gyLogInfo' "" $ printf "MIN.swap.1.4 oldA:%s oldB:%s oldProduct:%s" (show oldA) (show oldB) (show (unAmount oldA * unAmount oldB))
+    gyLogInfo' "" $ printf "MIN.swap.1.5 newA:%s newB:%s newProduct:%s" (show newA) (show newB) (show (unAmount newA * unAmount newB))
+
+    scriptAddr <- uniswapAddress us 
+    val' <- valueFromPlutus' val
+
+    lpTokenName <- tokenNameFromPlutus' $ lpTicker lp
+    let 
+        txSkeleton =
+                     mustHaveInput (GYTxIn { gyTxInTxOutRef = oref
+                                            , gyTxInWitness  = GYTxInWitnessScript
+                                                (GYInScript usInst)
+                                                (datumFromPlutusData (Pool lp liquidity))
+                                                redeemer
+                                            })
+                  <> mustHaveOutput (GYTxOut
+                    { gyTxOutAddress = scriptAddr
+                    , gyTxOutValue = val'
+                    --, gyTxOutDatum = Nothing
+                    , gyTxOutDatum = Just (datumFromPlutusData usDat, GYTxOutUseInlineDatum)
+                    , gyTxOutRefS    = Nothing
+                    })
+
+    gyLogInfo' "" $ printf "MIN.swap.3 skeleton %s" (show txSkeleton)
+
+    return txSkeleton
+
+
 
 funds :: GYTxQueryMonad m => GYAddress -> m GYValue
 funds addr = do
@@ -491,7 +550,30 @@ findUniswapFactoryAndPool us coinA coinB = do
                    )
         _    -> error "liquidity pool not found"
 
+findSwapA :: Amount A -> Amount B -> Amount A -> Integer
+findSwapA oldA oldB inA
+    | ub' <= 1   = 0
+    | otherwise  = go 1 ub'
+  where
+    cs :: Integer -> Bool
+    cs outB = checkSwap oldA oldB (oldA + inA) (oldB - Amount outB)
 
+    ub' :: Integer
+    ub' = head $ dropWhile cs [2 ^ i | i <- [0 :: Int ..]]
+
+    go :: Integer -> Integer -> Integer
+    go lb ub
+        | ub == (lb + 1) = lb
+        | otherwise      =
+      let
+        m = div (ub + lb) 2
+      in
+        if cs m then go m ub else go lb m
+
+findSwapB :: Amount A -> Amount B -> Amount B -> Integer
+findSwapB oldA oldB inB = findSwapA (switch oldB) (switch oldA) (switch inB)
+  where
+    switch = Amount . unAmount
 
 
 listFactory :: GYTxQueryMonad m 
