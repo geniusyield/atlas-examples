@@ -18,6 +18,7 @@ module Dex.Api.Operations
   , pools
   , poolsGY
   , funds
+  , remove
   ) where
 
 
@@ -81,8 +82,8 @@ mShowUtxos :: GYTxMonad m => Uniswap
                -> m (GYTxSkeleton 'PlutusV2)
 mShowUtxos us = do
     gyLogInfo' "" $ printf "Min.showUtxos.1"
-    (ref, lps) <- findUniswapFactory us
-    gyLogInfo' "" $ printf "Min.showUtxos.2 ref:%s datum:%s" (show ref) (show lps)
+    (ref, v, lps) <- findUniswapFactory us
+    gyLogInfo' "" $ printf "Min.showUtxos.2 ref:%s val: %s datum:%s" (show ref) (show v) (show lps)
 
     gyLogInfo' "" $ printf "Min.showUtxos.1"
     return mempty
@@ -96,8 +97,8 @@ createPool addr us coinA amountA coinB amountB = do
     gyLogInfo' "" $ printf "createPool 0 createPool us:%s coinA:%s amountA:%s coinB:%s amountB:%s" (show us) (show coinA) (show amountA) (show coinB) (show amountB)
     when (unCoin coinA == unCoin coinB) $ error "coins must be different"
     when (amountA <= 0 || amountB <= 0) $ error "amounts must be positive"
-    (ref, lps) <- findUniswapFactory us
-    gyLogInfo' "" $ printf "createPool 1 createPool re:%s datum:%s" (show ref) (show lps)
+    (ref, v, lps) <- findUniswapFactory us
+    gyLogInfo' "" $ printf "createPool 1 createPool ref:%s val:%s datum:%s" (show ref) (show v) (show lps)
     let liquidity = calculateInitialLiquidity amountA amountB
         lp = LiquidityPool {lpCoinA = coinA, lpCoinB = coinB}
     gyLogInfo' "" $ printf "createPool 2 createPool liquidity:%s lp:%s" (show liquidity) (show lp)
@@ -175,9 +176,9 @@ closePool :: GYTxMonad m
                -> m (GYTxSkeleton 'PlutusV2)
 closePool us coinA coinB = do
     gyLogInfo' "" $ printf "MIN.closePool.1"
-    ((oref1, lps), (oref2, lp, liquidity)) <- findUniswapFactoryAndPool us coinA coinB
-    gyLogInfo' "" $ printf "MIN.closePool.1.1 %s %s" (show oref1) (show lps)
-    gyLogInfo' "" $ printf "MIN.closePool.1.2 %s %s %s" (show oref2) (show lp) (show liquidity)
+    ((oref1, v1, lps), (oref2, v2, lp, liquidity)) <- findUniswapFactoryAndPool us coinA coinB
+    gyLogInfo' "" $ printf "MIN.closePool.1.1 %s %s %s" (show oref1) (show v1) (show lps)
+    gyLogInfo' "" $ printf "MIN.closePool.1.2 %s %s %s %s" (show oref2) (show v2) (show lp) (show liquidity)
     let usInst      = uniswapValidator' us
         usDat       = Factory $ filter (/= lp) lps
         usC         = usCoin us
@@ -218,6 +219,63 @@ closePool us coinA coinB = do
                     })
 
     gyLogInfo' "" $ printf "MIN.closePool.3 skeleton %s" (show txSkeleton)
+
+    return txSkeleton
+
+remove :: GYTxMonad m
+               => Uniswap
+               -> Coin A
+               -> Coin B
+               -> Amount Liquidity
+               -> m (GYTxSkeleton 'PlutusV2)
+remove us coinA coinB rpDiff = do
+    gyLogInfo' "" $ printf "MIN.remove.1 us:%s" (show us)
+    gyLogInfo' "" $ printf "MIN.remove.1.1 conA:%s coinB:%s rpDiff:%s" (show coinA) (show coinB) (show rpDiff)
+    ((_, _, _), (oref, v, lp, liquidity)) <- findUniswapFactoryAndPool us coinA coinB
+    gyLogInfo' "" $ printf "MIN.remove.1.2 %s %s %s %s" (show oref) (show v) (show lp) (show liquidity)
+    when (rpDiff < 1 || rpDiff >= liquidity) $ error "removed liquidity must be positive and less than total liquidity"
+    let usInst      = uniswapValidator' us
+        usDat       = Pool lp $ liquidity - rpDiff
+        usC         = usCoin us
+        psC         = poolStateCoin us
+        lC          = mkCoin (liquidityCurrency us) $ lpTicker lp
+        redeemer    = redeemerFromPlutusData Remove
+        v'          = valueToPlutus v
+        inA         = amountOf v' coinA
+        inB         = amountOf v' coinB
+        (outA, outB) = calculateRemoval inA inB liquidity rpDiff
+    psVal       <- valueFromPlutus' (unitValue psC)
+    lVal        <- valueFromPlutus' (valueOf lC rpDiff)
+    scriptAddr <- uniswapAddress us 
+    let 
+        val          = unitValue psC <> valueOf coinA outA <> valueOf coinB outB
+    val' <- valueFromPlutus' val
+
+    gyLogInfo' "" $ printf "MIN.remove.2.1 coinA:%s coinB:%s" (show coinA) (show coinB)
+    gyLogInfo' "" $ printf "MIN.remove.2.2 outA:%s outB:%s" (show outA) (show outB)
+
+    lpTokenName <- tokenNameFromPlutus' $ lpTicker lp
+    let 
+        --liquidityPolicy'' = liquidityPolicy' us lpTokenName
+        psLiquidityPolicy = liquidityPolicy' us poolStateTokenName    
+    let 
+        txSkeleton =
+                  mustMint psLiquidityPolicy unitRedeemer lpTokenName (negate $ unAmount rpDiff)
+                  <> mustHaveInput (GYTxIn { gyTxInTxOutRef = oref
+                                            , gyTxInWitness  = GYTxInWitnessScript
+                                                (GYInScript usInst)
+                                                (datumFromPlutusData (Pool lp liquidity))
+                                                redeemer
+                                            })
+                  <> mustHaveOutput (GYTxOut
+                    { gyTxOutAddress = scriptAddr
+                    , gyTxOutValue = val'
+                    --, gyTxOutDatum = Nothing
+                    , gyTxOutDatum = Just (datumFromPlutusData usDat, GYTxOutUseInlineDatum)
+                    , gyTxOutRefS    = Nothing
+                    })
+
+    gyLogInfo' "" $ printf "MIN.remove.3 skeleton %s" (show txSkeleton)
 
     return txSkeleton
 
@@ -335,7 +393,7 @@ pools us = do
 
 findUniswapInstance :: (HasCallStack, GYTxMonad m )
                        => Uniswap -> Coin b 
-                       -> (UniswapDatum -> Maybe a) -> m (GYTxOutRef, a)
+                       -> (UniswapDatum -> Maybe a) -> m (GYTxOutRef, GYValue, a)
 findUniswapInstance us c f = do
     addr <- uniswapAddress us
     gyLogInfo' "" $ printf "findUniswapInstance 1 addr %s" (show addr)
@@ -347,18 +405,18 @@ findUniswapInstance us c f = do
     go [x | x@(ref, (_, _, d)) <- itoList datums]
             where
                 go [] = error "MIN: findUniswapInstance: not found"
-                go ((ref, (_, _, d)) : xs) = do
+                go ((ref, (_, v, d)) : xs) = do
                     case f d of
                         Nothing -> go xs
                         Just a  -> do
-                            return (ref, a)
+                            return (ref, v, a)
 
-findUniswapFactory :: GYTxMonad m => Uniswap -> m (GYTxOutRef, [LiquidityPool])
+findUniswapFactory :: GYTxMonad m => Uniswap -> m (GYTxOutRef, GYValue, [LiquidityPool])
 findUniswapFactory us@Uniswap{..} = findUniswapInstance us usCoin $ \case
     Factory lps -> Just lps
     Pool _ _    -> Nothing
 
-findUniswapPool :: GYTxMonad m => Uniswap -> LiquidityPool -> m (GYTxOutRef, Amount Liquidity)
+findUniswapPool :: GYTxMonad m => Uniswap -> LiquidityPool -> m (GYTxOutRef, GYValue, Amount Liquidity)
 findUniswapPool us lp = findUniswapInstance us (poolStateCoin us) $ \case
         Pool lp' l
             | lp == lp' -> Just l
@@ -369,19 +427,19 @@ findUniswapFactoryAndPool :: GYTxMonad m =>
                           Uniswap
                           -> Coin A
                           -> Coin B
-                          -> m ( (GYTxOutRef, [LiquidityPool])
-                               , (GYTxOutRef, LiquidityPool, Amount Liquidity)
+                          -> m ( (GYTxOutRef, GYValue, [LiquidityPool])
+                               , (GYTxOutRef, GYValue, LiquidityPool, Amount Liquidity)
                                )
 findUniswapFactoryAndPool us coinA coinB = do
-    (oref1, lps) <- findUniswapFactory us
+    (oref1, v1, lps) <- findUniswapFactory us
     case [ lp'
          | lp' <- lps
          , lp' == LiquidityPool coinA coinB
          ] of
         [lp] -> do
-            (oref2, a) <- findUniswapPool us lp
-            return ( (oref1, lps)
-                   , (oref2, lp, a)
+            (oref2, v2, a) <- findUniswapPool us lp
+            return ( (oref1, v1, lps)
+                   , (oref2, v2, lp, a)
                    )
         _    -> error "liquidity pool not found"
 
