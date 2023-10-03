@@ -3,7 +3,7 @@ module Dex.Api.Dex where
 import           Dex.Api.Context
 import           Dex.Api.Operations
 import qualified Dex.OnChain.Dex.Compiled as Script
-import qualified Dex.OnChain.Uniswap.Types as Script'
+import Dex.OnChain.Uniswap.Types 
 import qualified Data.Map.Strict                as Map
 import           Data.Maybe                     (fromJust)
 import qualified Data.Swagger                   as Swagger
@@ -13,7 +13,7 @@ import           GeniusYield.Imports
 import           GeniusYield.Types
 import           Servant
 import Plutus.V1.Ledger.Value (assetClassValue, Value)
-import GeniusYield.TxBuilder (valueFromPlutus')
+import GeniusYield.TxBuilder (valueFromPlutus', assetClassFromPlutus')
 
 data TokenParams = TokenParams
   { tpName        :: !GYTokenName
@@ -100,8 +100,10 @@ data ListPoolParams = ListPoolParams
   } deriving (Show, Generic, FromJSON, Swagger.ToSchema)
 
 data SinglePoolResponse = SinglePoolResponse {
-  sprCoinA :: !GYValue,
-  sprCoinB :: !GYValue
+    sprCoinA :: !GYAssetClass
+  , sprAmountA :: !Integer
+  , sprCoinB :: !GYAssetClass
+  , sprAmountB :: !Integer
   } deriving (Show, Generic, FromJSON, ToJSON, Swagger.ToSchema)
 
 data ListPoolResponse = ListPoolResponse
@@ -227,8 +229,8 @@ handleStart ctx StartParams{..} = do
   pure $ StartResponse ac (unSignedTxWithFee txBody Nothing)
 
 
-uniswap :: GYAssetClass -> Script'.Uniswap
-uniswap ac = Script'.Uniswap $ Script.mkCoin' (assetClassToPlutus ac) 
+uniswap :: GYAssetClass -> Uniswap
+uniswap ac = Uniswap $ Script.mkCoin' (assetClassToPlutus ac) 
 
 handleFactory :: Ctx -> StartFactoryParams -> IO StartFactoryResponse
 handleFactory ctx StartFactoryParams{..} = do
@@ -248,10 +250,10 @@ handleCreatePool ctx CreatePoolParams{..} = do
               $ createPool 
                 (gpChangeAddr cppGPParams)
                   us 
-                  (Script'.Coin $ assetClassToPlutus cppTokenAAssetClass)
-                  (Script'.Amount cppTokenAAmount) 
-                  (Script'.Coin $ assetClassToPlutus cppTokenBAssetClass)
-                  (Script'.Amount cppTokenBAmount)  
+                  (Coin $ assetClassToPlutus cppTokenAAssetClass)
+                  (Amount cppTokenAAmount) 
+                  (Coin $ assetClassToPlutus cppTokenBAssetClass)
+                  (Amount cppTokenBAmount)  
   pure $ CreatePoolResponse (unSignedTxWithFee txBody Nothing)
 
 handleClosePool :: Ctx -> ClosePoolParams -> IO ClosePoolResponse
@@ -259,23 +261,32 @@ handleClosePool ctx ClosePoolParams{..} = do
   txBody <- runTxI ctx (gpUsedAddrs clppGPParams) (gpChangeAddr clppGPParams) (gpCollateral clppGPParams)
               $ closePool 
                   (uniswap clppFactoryAssetClass)
-                  (Script'.Coin $ assetClassToPlutus clppTokenAAssetClass)
-                  (Script'.Coin $ assetClassToPlutus clppTokenBAssetClass)
+                  (Coin $ assetClassToPlutus clppTokenAAssetClass)
+                  (Coin $ assetClassToPlutus clppTokenBAssetClass)
   pure $ ClosePoolResponse (unSignedTxWithFee txBody Nothing)
 
 
 handleListPool :: Ctx -> ListPoolParams -> IO ListPoolResponse
 handleListPool ctx ListPoolParams{..} = do
   let us   = uniswap lppFactoryAssetClass
-  poolsList <- runQuery ctx $ poolsGY us 
+  poolsList <- runQuery ctx $ pools us 
 
   pure $ ListPoolResponse (go poolsList)
     where 
-      go :: [(GYValue, GYValue)] -> [SinglePoolResponse]
+      go :: [((Coin A, Amount A), (Coin B, Amount B))] -> [SinglePoolResponse]
       go [] = []
-      go ((aV, bV) : xs) = do
-        let p' = SinglePoolResponse aV bV
-        p' : go xs
+      go (((aV, aA), (bV, bA)) : xs) = do
+        case assetClassFromPlutus' (unCoin aV) of
+          Left _ -> go xs
+          Right aV' -> do
+            case assetClassFromPlutus' (unCoin bV) of
+              Left _ -> go xs
+              Right bV' -> do 
+                let 
+                    aA' = unAmount aA
+                    bA' = unAmount bA
+                    p' = SinglePoolResponse aV' aA' bV' bA'
+                p' : go xs
 
 handleRemove :: Ctx -> RemoveParams -> IO DefaultTxResponse
 handleRemove ctx RemoveParams{..} = do
@@ -283,9 +294,9 @@ handleRemove ctx RemoveParams{..} = do
   txBody <- runTxI ctx (gpUsedAddrs rpGPParams) (gpChangeAddr rpGPParams) (gpCollateral rpGPParams)
               $ remove 
                   us 
-                  (Script'.Coin $ assetClassToPlutus rpCoinA)
-                  (Script'.Coin $ assetClassToPlutus rpCoinB)
-                  (Script'.Amount rpDiff)  
+                  (Coin $ assetClassToPlutus rpCoinA)
+                  (Coin $ assetClassToPlutus rpCoinB)
+                  (Amount rpDiff)  
   pure $ DefaultTxResponse (unSignedTxWithFee txBody Nothing)
 
 handleAdd :: Ctx -> AddParams -> IO DefaultTxResponse
@@ -294,10 +305,10 @@ handleAdd ctx AddParams{..} = do
   txBody <- runTxI ctx (gpUsedAddrs apGPParams) (gpChangeAddr apGPParams) (gpCollateral apGPParams)
               $ add 
                   us 
-                  (Script'.Coin $ assetClassToPlutus apCoinA)
-                  (Script'.Amount apAmountA)  
-                  (Script'.Coin $ assetClassToPlutus apCoinB)
-                  (Script'.Amount apAmountB)  
+                  (Coin $ assetClassToPlutus apCoinA)
+                  (Amount apAmountA)  
+                  (Coin $ assetClassToPlutus apCoinB)
+                  (Amount apAmountB)  
   pure $ DefaultTxResponse (unSignedTxWithFee txBody Nothing)
 
 handleSwap :: Ctx -> SwapParams -> IO DefaultTxResponse
@@ -306,10 +317,10 @@ handleSwap ctx SwapParams{..} = do
   txBody <- runTxI ctx (gpUsedAddrs swpGPParams) (gpChangeAddr swpGPParams) (gpCollateral swpGPParams)
               $ swap 
                   us 
-                  (Script'.Coin $ assetClassToPlutus swpCoinA)
-                  (Script'.Amount swpAmountA)  
-                  (Script'.Coin $ assetClassToPlutus swpCoinB)
-                  (Script'.Amount swpAmountB)  
+                  (Coin $ assetClassToPlutus swpCoinA)
+                  (Amount swpAmountA)  
+                  (Coin $ assetClassToPlutus swpCoinB)
+                  (Amount swpAmountB)  
   pure $ DefaultTxResponse (unSignedTxWithFee txBody Nothing)
 
 

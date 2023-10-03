@@ -1,5 +1,36 @@
 {
     "definitions": {
+        "AddParams": {
+            "properties": {
+                "apAmountA": {
+                    "type": "integer"
+                },
+                "apAmountB": {
+                    "type": "integer"
+                },
+                "apCoinA": {
+                    "$ref": "#/definitions/GYAssetClass"
+                },
+                "apCoinB": {
+                    "$ref": "#/definitions/GYAssetClass"
+                },
+                "apFactoryAssetClass": {
+                    "$ref": "#/definitions/GYAssetClass"
+                },
+                "apGPParams": {
+                    "$ref": "#/definitions/GeneralParams"
+                }
+            },
+            "required": [
+                "apGPParams",
+                "apFactoryAssetClass",
+                "apCoinA",
+                "apCoinB",
+                "apAmountA",
+                "apAmountB"
+            ],
+            "type": "object"
+        },
         "ClosePoolParams": {
             "properties": {
                 "clppFactoryAssetClass": {
@@ -106,6 +137,17 @@
                 "ctpCollateral",
                 "ctpName",
                 "ctpDatumCount"
+            ],
+            "type": "object"
+        },
+        "DefaultTxResponse": {
+            "properties": {
+                "unsignedTxResponse": {
+                    "$ref": "#/definitions/UnsignedTxResponse"
+                }
+            },
+            "required": [
+                "unsignedTxResponse"
             ],
             "type": "object"
         },
@@ -322,18 +364,53 @@
             ],
             "type": "object"
         },
+        "RemoveParams": {
+            "properties": {
+                "rpCoinA": {
+                    "$ref": "#/definitions/GYAssetClass"
+                },
+                "rpCoinB": {
+                    "$ref": "#/definitions/GYAssetClass"
+                },
+                "rpDiff": {
+                    "type": "integer"
+                },
+                "rpFactoryAssetClass": {
+                    "$ref": "#/definitions/GYAssetClass"
+                },
+                "rpGPParams": {
+                    "$ref": "#/definitions/GeneralParams"
+                }
+            },
+            "required": [
+                "rpGPParams",
+                "rpFactoryAssetClass",
+                "rpCoinA",
+                "rpCoinB",
+                "rpDiff"
+            ],
+            "type": "object"
+        },
         "SinglePoolResponse": {
             "properties": {
+                "sprAmountA": {
+                    "type": "integer"
+                },
+                "sprAmountB": {
+                    "type": "integer"
+                },
                 "sprCoinA": {
-                    "$ref": "#/definitions/GYValue"
+                    "$ref": "#/definitions/GYAssetClass"
                 },
                 "sprCoinB": {
-                    "$ref": "#/definitions/GYValue"
+                    "$ref": "#/definitions/GYAssetClass"
                 }
             },
             "required": [
                 "sprCoinA",
-                "sprCoinB"
+                "sprAmountA",
+                "sprCoinB",
+                "sprAmountB"
             ],
             "type": "object"
         },
@@ -501,6 +578,37 @@
                 }
             }
         },
+        "/dex/pool/add": {
+            "post": {
+                "consumes": [
+                    "application/json;charset=utf-8"
+                ],
+                "parameters": [
+                    {
+                        "in": "body",
+                        "name": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/AddParams"
+                        }
+                    }
+                ],
+                "produces": [
+                    "application/json;charset=utf-8"
+                ],
+                "responses": {
+                    "200": {
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/DefaultTxResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid `body`"
+                    }
+                }
+            }
+        },
         "/dex/pool/close": {
             "post": {
                 "consumes": [
@@ -586,6 +694,37 @@
                         "description": "",
                         "schema": {
                             "$ref": "#/definitions/ListPoolResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid `body`"
+                    }
+                }
+            }
+        },
+        "/dex/pool/remove": {
+            "post": {
+                "consumes": [
+                    "application/json;charset=utf-8"
+                ],
+                "parameters": [
+                    {
+                        "in": "body",
+                        "name": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/RemoveParams"
+                        }
+                    }
+                ],
+                "produces": [
+                    "application/json;charset=utf-8"
+                ],
+                "responses": {
+                    "200": {
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/DefaultTxResponse"
                         }
                     },
                     "400": {
