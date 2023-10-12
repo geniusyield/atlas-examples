@@ -10,12 +10,12 @@ module BetRef.OnChain.BetRef.Compiled
     , BetRefAction (..)
     ) where
 
-import           Plutus.V2.Ledger.Api
+import           PlutusCore.Version    (plcVersion100)
 import qualified PlutusTx
 
 import           BetRef.OnChain.BetRef
 
 -- | Generates validator given params.
-betRefValidator :: BetRefParams -> Validator
-betRefValidator betRefParams = mkValidatorScript $
-    $$(PlutusTx.compile [|| mkBetRefValidator||]) `PlutusTx.applyCode` PlutusTx.liftCode betRefParams
+betRefValidator :: BetRefParams -> PlutusTx.CompiledCode (PlutusTx.BuiltinData -> PlutusTx.BuiltinData -> PlutusTx.BuiltinData -> ())
+betRefValidator betRefParams =
+    $$(PlutusTx.compile [|| mkBetRefValidator||]) `PlutusTx.unsafeApplyCode` PlutusTx.liftCode plcVersion100 betRefParams
