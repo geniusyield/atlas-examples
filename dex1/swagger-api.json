@@ -404,9 +404,13 @@
                 },
                 "sprCoinB": {
                     "$ref": "#/definitions/GYAssetClass"
+                },
+                "sprOutRef": {
+                    "$ref": "#/definitions/GYTxOutRef"
                 }
             },
             "required": [
+                "sprOutRef",
                 "sprCoinA",
                 "sprAmountA",
                 "sprCoinB",

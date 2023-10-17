@@ -100,7 +100,8 @@ data ListPoolParams = ListPoolParams
   } deriving (Show, Generic, FromJSON, Swagger.ToSchema)
 
 data SinglePoolResponse = SinglePoolResponse {
-    sprCoinA :: !GYAssetClass
+    sprOutRef :: !GYTxOutRef
+  , sprCoinA :: !GYAssetClass
   , sprAmountA :: !Integer
   , sprCoinB :: !GYAssetClass
   , sprAmountB :: !Integer
@@ -273,9 +274,9 @@ handleListPool ctx ListPoolParams{..} = do
 
   pure $ ListPoolResponse (go poolsList)
     where 
-      go :: [((Coin A, Amount A), (Coin B, Amount B))] -> [SinglePoolResponse]
+      go :: [(GYTxOutRef, (Coin A, Amount A), (Coin B, Amount B))] -> [SinglePoolResponse]
       go [] = []
-      go (((aV, aA), (bV, bA)) : xs) = do
+      go ((ref, (aV, aA), (bV, bA)) : xs) = do
         case assetClassFromPlutus' (unCoin aV) of
           Left _ -> go xs
           Right aV' -> do
@@ -285,7 +286,7 @@ handleListPool ctx ListPoolParams{..} = do
                 let 
                     aA' = unAmount aA
                     bA' = unAmount bA
-                    p' = SinglePoolResponse aV' aA' bV' bA'
+                    p' = SinglePoolResponse ref aV' aA' bV' bA'
                 p' : go xs
 
 handleRemove :: Ctx -> RemoveParams -> IO DefaultTxResponse

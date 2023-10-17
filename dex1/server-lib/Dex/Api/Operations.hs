@@ -394,15 +394,15 @@ funds addr = do
     return balance
 
 
-poolsGY :: GYTxQueryMonad m => Uniswap -> m [(GYValue, GYValue)]
+poolsGY :: GYTxQueryMonad m => Uniswap -> m [(GYTxOutRef, GYValue, GYValue)]
 poolsGY us = do
     list <- pools us
 
     pure $ go list
         where 
-        go :: [((Coin A, Amount A), (Coin B, Amount B))] -> [(GYValue, GYValue)]
+        go :: [(GYTxOutRef, (Coin A, Amount A), (Coin B, Amount B))] -> [(GYTxOutRef, GYValue, GYValue)]
         go [] = []
-        go (((aC, aA), (bC, bA)) : xs) = do
+        go ((ref, (aC, aA), (bC, bA)) : xs) = do
             let
                 aV = assetClassValue (unCoin aC) (unAmount aA)
                 bV = assetClassValue (unCoin bC) (unAmount bA)
@@ -410,9 +410,9 @@ poolsGY us = do
                 Left _ -> go xs
                 Right a' -> case valueFromPlutus bV of
                                 Left _ -> go xs
-                                Right b' -> (a', b') : go xs
+                                Right b' -> (ref, a', b') : go xs
 
-pools :: GYTxQueryMonad m => Uniswap -> m [((Coin A, Amount A), (Coin B, Amount B))]
+pools :: GYTxQueryMonad m => Uniswap -> m [(GYTxOutRef, (Coin A, Amount A), (Coin B, Amount B))]
 pools us = do
     scriptAddr <- uniswapAddress us
     gyLogInfo' "" $ printf "Min.pools.1 addr %s" (show scriptAddr)
@@ -432,11 +432,11 @@ pools us = do
     gyLogInfo' "" $ printf "Min.pools.3.2 datums %s" (show datums)    
 --     dList <- itoList datums
 
-    pure $ go $ snd <$> Map.toList datums
+    pure $ go $ Map.toList datums
         where
-            go :: [(GYAddress, GYValue, UniswapDatum)] -> [((Coin A, Amount A), (Coin B, Amount B))]
+            go :: [(GYTxOutRef, (GYAddress, GYValue, UniswapDatum))] -> [(GYTxOutRef, (Coin A, Amount A), (Coin B, Amount B))]
             go [] = []
-            go (x@(adr, val, d) : xs) = do
+            go (x@(ref, (adr, val, d)) : xs) = do
                 case d of
                     Pool lp _ -> do
                         let v = valueToPlutus val
@@ -444,7 +444,7 @@ pools us = do
                             coinB = lpCoinB lp
                             amtA  = amountOf v coinA
                             amtB  = amountOf v coinB
-                            s     = ((coinA, amtA), (coinB, amtB))
+                            s     = (ref, (coinA, amtA), (coinB, amtB))
                         -- gyLogInfo' "" $ printf "Min.pools.4.Found %s" (show s)
                         let ss = go xs
                         s : ss
