@@ -101,6 +101,7 @@ data ListPoolParams = ListPoolParams
 
 data SinglePoolResponse = SinglePoolResponse {
     sprOutRef :: !GYTxOutRef
+  , sprLiquidity :: !GYAssetClass
   , sprCoinA :: !GYAssetClass
   , sprAmountA :: !Integer
   , sprCoinB :: !GYAssetClass
@@ -274,20 +275,23 @@ handleListPool ctx ListPoolParams{..} = do
 
   pure $ ListPoolResponse (go poolsList)
     where 
-      go :: [(GYTxOutRef, (Coin A, Amount A), (Coin B, Amount B))] -> [SinglePoolResponse]
+      go :: [(GYTxOutRef, Coin a, (Coin A, Amount A), (Coin B, Amount B))] -> [SinglePoolResponse]
       go [] = []
-      go ((ref, (aV, aA), (bV, bA)) : xs) = do
+      go ((ref, cA, (aV, aA), (bV, bA)) : xs) = do
         case assetClassFromPlutus' (unCoin aV) of
           Left _ -> go xs
           Right aV' -> do
             case assetClassFromPlutus' (unCoin bV) of
               Left _ -> go xs
               Right bV' -> do 
-                let 
-                    aA' = unAmount aA
-                    bA' = unAmount bA
-                    p' = SinglePoolResponse ref aV' aA' bV' bA'
-                p' : go xs
+                case assetClassFromPlutus' (unCoin cA) of
+                  Left _ -> go xs
+                  Right cA' -> do
+                    let 
+                        aA' = unAmount aA
+                        bA' = unAmount bA
+                        p' = SinglePoolResponse ref cA' aV' aA' bV' bA'
+                    p' : go xs
 
 handleRemove :: Ctx -> RemoveParams -> IO DefaultTxResponse
 handleRemove ctx RemoveParams{..} = do

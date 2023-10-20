@@ -400,9 +400,9 @@ poolsGY us = do
 
     pure $ go list
         where 
-        go :: [(GYTxOutRef, (Coin A, Amount A), (Coin B, Amount B))] -> [(GYTxOutRef, GYValue, GYValue)]
+        go :: [(GYTxOutRef, Coin a, (Coin A, Amount A), (Coin B, Amount B))] -> [(GYTxOutRef, GYValue, GYValue)]
         go [] = []
-        go ((ref, (aC, aA), (bC, bA)) : xs) = do
+        go ((ref, cA, (aC, aA), (bC, bA)) : xs) = do
             let
                 aV = assetClassValue (unCoin aC) (unAmount aA)
                 bV = assetClassValue (unCoin bC) (unAmount bA)
@@ -412,7 +412,7 @@ poolsGY us = do
                                 Left _ -> go xs
                                 Right b' -> (ref, a', b') : go xs
 
-pools :: GYTxQueryMonad m => Uniswap -> m [(GYTxOutRef, (Coin A, Amount A), (Coin B, Amount B))]
+pools :: GYTxQueryMonad m => Uniswap -> m [(GYTxOutRef, Coin a, (Coin A, Amount A), (Coin B, Amount B))]
 pools us = do
     scriptAddr <- uniswapAddress us
     gyLogInfo' "" $ printf "Min.pools.1 addr %s" (show scriptAddr)
@@ -434,7 +434,7 @@ pools us = do
 
     pure $ go $ Map.toList datums
         where
-            go :: [(GYTxOutRef, (GYAddress, GYValue, UniswapDatum))] -> [(GYTxOutRef, (Coin A, Amount A), (Coin B, Amount B))]
+            go :: [(GYTxOutRef, (GYAddress, GYValue, UniswapDatum))] -> [(GYTxOutRef, Coin a, (Coin A, Amount A), (Coin B, Amount B))]
             go [] = []
             go (x@(ref, (adr, val, d)) : xs) = do
                 case d of
@@ -444,13 +444,18 @@ pools us = do
                             coinB = lpCoinB lp
                             amtA  = amountOf v coinA
                             amtB  = amountOf v coinB
-                            s     = (ref, (coinA, amtA), (coinB, amtB))
+                            s     = (ref, liqAssetClass coinA coinB, (coinA, amtA), (coinB, amtB))
                         -- gyLogInfo' "" $ printf "Min.pools.4.Found %s" (show s)
                         let ss = go xs
                         s : ss
                         --return s
                     _ -> go xs
                    -- _ -> go xs
+            
+            liqAssetClass :: Coin A -> Coin B -> Coin a
+            liqAssetClass coinA coinB = do
+                let lp = LiquidityPool {lpCoinA = coinA, lpCoinB = coinB}
+                mkCoin (liquidityCurrency us) (lpTicker lp)
 
 {-
     pure $ go [x | x <- dList]
