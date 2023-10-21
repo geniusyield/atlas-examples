@@ -400,9 +400,9 @@ poolsGY us = do
 
     pure $ go list
         where 
-        go :: [(GYTxOutRef, Coin a, (Coin A, Amount A), (Coin B, Amount B))] -> [(GYTxOutRef, GYValue, GYValue)]
+        go :: [(GYTxOutRef, (Coin Liquidity, Amount Liquidity), (Coin A, Amount A), (Coin B, Amount B))] -> [(GYTxOutRef, GYValue, GYValue)]
         go [] = []
-        go ((ref, cA, (aC, aA), (bC, bA)) : xs) = do
+        go ((ref, (liqAss, liqA), (aC, aA), (bC, bA)) : xs) = do
             let
                 aV = assetClassValue (unCoin aC) (unAmount aA)
                 bV = assetClassValue (unCoin bC) (unAmount bA)
@@ -412,7 +412,7 @@ poolsGY us = do
                                 Left _ -> go xs
                                 Right b' -> (ref, a', b') : go xs
 
-pools :: GYTxQueryMonad m => Uniswap -> m [(GYTxOutRef, Coin a, (Coin A, Amount A), (Coin B, Amount B))]
+pools :: GYTxQueryMonad m => Uniswap -> m [(GYTxOutRef, (Coin Liquidity, Amount Liquidity), (Coin A, Amount A), (Coin B, Amount B))]
 pools us = do
     scriptAddr <- uniswapAddress us
     gyLogInfo' "" $ printf "Min.pools.1 addr %s" (show scriptAddr)
@@ -434,17 +434,18 @@ pools us = do
 
     pure $ go $ Map.toList datums
         where
-            go :: [(GYTxOutRef, (GYAddress, GYValue, UniswapDatum))] -> [(GYTxOutRef, Coin a, (Coin A, Amount A), (Coin B, Amount B))]
+            go :: [(GYTxOutRef, (GYAddress, GYValue, UniswapDatum))] -> [(GYTxOutRef, (Coin Liquidity, Amount Liquidity), (Coin A, Amount A), (Coin B, Amount B))]
             go [] = []
             go (x@(ref, (adr, val, d)) : xs) = do
                 case d of
-                    Pool lp _ -> do
+                    Pool lp lA -> do
                         let v = valueToPlutus val
                             coinA = lpCoinA lp
                             coinB = lpCoinB lp
                             amtA  = amountOf v coinA
                             amtB  = amountOf v coinB
-                            s     = (ref, liqAssetClass coinA coinB, (coinA, amtA), (coinB, amtB))
+                            liqAss = liqAssetClass coinA coinB
+                            s     = (ref, (liqAss, lA), (coinA, amtA), (coinB, amtB))
                         -- gyLogInfo' "" $ printf "Min.pools.4.Found %s" (show s)
                         let ss = go xs
                         s : ss

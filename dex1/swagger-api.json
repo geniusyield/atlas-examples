@@ -399,6 +399,9 @@
                 "sprAmountB": {
                     "type": "integer"
                 },
+                "sprAmountLiquidity": {
+                    "type": "integer"
+                },
                 "sprCoinA": {
                     "$ref": "#/definitions/GYAssetClass"
                 },
@@ -415,6 +418,7 @@
             "required": [
                 "sprOutRef",
                 "sprLiquidity",
+                "sprAmountLiquidity",
                 "sprCoinA",
                 "sprAmountA",
                 "sprCoinB",
