@@ -503,6 +503,37 @@
             ],
             "type": "object"
         },
+        "SwapParams": {
+            "properties": {
+                "swpAmountA": {
+                    "type": "integer"
+                },
+                "swpAmountB": {
+                    "type": "integer"
+                },
+                "swpCoinA": {
+                    "$ref": "#/definitions/GYAssetClass"
+                },
+                "swpCoinB": {
+                    "$ref": "#/definitions/GYAssetClass"
+                },
+                "swpFactoryAssetClass": {
+                    "$ref": "#/definitions/GYAssetClass"
+                },
+                "swpGPParams": {
+                    "$ref": "#/definitions/GeneralParams"
+                }
+            },
+            "required": [
+                "swpGPParams",
+                "swpFactoryAssetClass",
+                "swpCoinA",
+                "swpCoinB",
+                "swpAmountA",
+                "swpAmountB"
+            ],
+            "type": "object"
+        },
         "UnsignedTxResponse": {
             "properties": {
                 "urspTxBodyHex": {
@@ -726,6 +757,37 @@
                         "required": true,
                         "schema": {
                             "$ref": "#/definitions/RemoveParams"
+                        }
+                    }
+                ],
+                "produces": [
+                    "application/json;charset=utf-8"
+                ],
+                "responses": {
+                    "200": {
+                        "description": "",
+                        "schema": {
+                            "$ref": "#/definitions/DefaultTxResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid `body`"
+                    }
+                }
+            }
+        },
+        "/dex/pool/swap": {
+            "post": {
+                "consumes": [
+                    "application/json;charset=utf-8"
+                ],
+                "parameters": [
+                    {
+                        "in": "body",
+                        "name": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/SwapParams"
                         }
                     }
                 ],

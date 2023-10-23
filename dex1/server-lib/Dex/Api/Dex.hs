@@ -202,6 +202,9 @@ type DexApi =
   :<|> "pool" :> "add"
     :> ReqBody '[JSON] AddParams
     :> Post    '[JSON] DefaultTxResponse
+  :<|> "pool" :> "swap"
+    :> ReqBody '[JSON] SwapParams
+    :> Post    '[JSON] DefaultTxResponse
   :<|> "wallet" :> "balance"
     :> ReqBody '[JSON] ListBalanceParams
     :> Post    '[JSON] ListBalanceResponse
@@ -221,6 +224,7 @@ handleDexApi ctx =   handleStart ctx
                 :<|> handleListPool ctx
                 :<|> handleRemove ctx
                 :<|> handleAdd ctx
+                :<|> handleSwap ctx
                 :<|> handleListBalance ctx
                 :<|> handleCreateDatumToken ctx
                 :<|> handleHello ctx
@@ -329,8 +333,6 @@ handleSwap ctx SwapParams{..} = do
                   (Coin $ assetClassToPlutus swpCoinB)
                   (Amount swpAmountB)  
   pure $ DefaultTxResponse (unSignedTxWithFee txBody Nothing)
-
-
 
 handleListFactory :: Ctx -> ListFactoryParams -> IO ListFactoryResponse
 handleListFactory ctx ListFactoryParams{..} = do
