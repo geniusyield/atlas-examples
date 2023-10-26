@@ -78,22 +78,12 @@ data CreatePoolParams = CreatePoolParams
   , cppTokenBAmount :: !Integer
   } deriving (Show, Generic, FromJSON, Swagger.ToSchema)
 
-data CreatePoolResponse = CreatePoolResponse
-  { 
-    cprUnsignedTxResponse :: !UnsignedTxResponse
-  } deriving (Show, Generic, FromJSON, ToJSON, Swagger.ToSchema)
-
 data ClosePoolParams = ClosePoolParams
   { clppGPParams  :: !GeneralParams
   , clppFactoryAssetClass  :: !GYAssetClass
   , clppTokenAAssetClass :: !GYAssetClass
   , clppTokenBAssetClass :: !GYAssetClass
   } deriving (Show, Generic, FromJSON, Swagger.ToSchema)
-
-data ClosePoolResponse = ClosePoolResponse
-  { 
-    clprUnsignedTxResponse :: !UnsignedTxResponse
-  } deriving (Show, Generic, FromJSON, ToJSON, Swagger.ToSchema)
 
 data ListPoolParams = ListPoolParams
   { lppFactoryAssetClass  :: !GYAssetClass
@@ -112,11 +102,6 @@ data SinglePoolResponse = SinglePoolResponse {
 data ListPoolResponse = ListPoolResponse
   { 
     lprList :: ![SinglePoolResponse]
-  } deriving (Show, Generic, FromJSON, ToJSON, Swagger.ToSchema)
-
-
-data StartFactoryResponse = StartFactoryResponse
-  { srfUnsignedTxResponse :: !UnsignedTxResponse
   } deriving (Show, Generic, FromJSON, ToJSON, Swagger.ToSchema)
 
 data ListFactoryResponse = ListFactoryResponse
@@ -183,16 +168,16 @@ type DexApi =
     :> Post    '[JSON] StartResponse
   :<|> "factory" :> "create"
     :> ReqBody '[JSON] StartFactoryParams
-    :> Post    '[JSON] StartFactoryResponse
+    :> Post    '[JSON] DefaultTxResponse
   :<|> "factory" :> "list"
     :> ReqBody '[JSON] ListFactoryParams
     :> Post    '[JSON] ListFactoryResponse
   :<|> "pool" :> "create"
     :> ReqBody '[JSON] CreatePoolParams
-    :> Post    '[JSON] CreatePoolResponse
+    :> Post    '[JSON] DefaultTxResponse
   :<|> "pool" :> "close"
     :> ReqBody '[JSON] ClosePoolParams
-    :> Post    '[JSON] ClosePoolResponse
+    :> Post    '[JSON] DefaultTxResponse
   :<|> "pool" :> "list"
     :> ReqBody '[JSON] ListPoolParams
     :> Post    '[JSON] ListPoolResponse
@@ -239,15 +224,15 @@ handleStart ctx StartParams{..} = do
 uniswap :: GYAssetClass -> Uniswap
 uniswap ac = Uniswap $ Script.mkCoin' (assetClassToPlutus ac) 
 
-handleFactory :: Ctx -> StartFactoryParams -> IO StartFactoryResponse
+handleFactory :: Ctx -> StartFactoryParams -> IO DefaultTxResponse
 handleFactory ctx StartFactoryParams{..} = do
   let us   = uniswap spfAssetClass
       -- inst = uniswapInstance us  
   txBody <- runTxI ctx (gpUsedAddrs spfGPParams) (gpChangeAddr spfGPParams) (gpCollateral spfGPParams)
               $ createFactory us
-  pure $ StartFactoryResponse (unSignedTxWithFee txBody Nothing) 
+  pure $ DefaultTxResponse (unSignedTxWithFee txBody Nothing) 
 
-handleCreatePool :: Ctx -> CreatePoolParams -> IO CreatePoolResponse
+handleCreatePool :: Ctx -> CreatePoolParams -> IO DefaultTxResponse
 handleCreatePool ctx CreatePoolParams{..} = do
   let us   = uniswap cppFactoryAssetClass
       --tokenA = valueSingleton cppTokenAAssetClass cppTokenAAmount
@@ -261,16 +246,16 @@ handleCreatePool ctx CreatePoolParams{..} = do
                   (Amount cppTokenAAmount) 
                   (Coin $ assetClassToPlutus cppTokenBAssetClass)
                   (Amount cppTokenBAmount)  
-  pure $ CreatePoolResponse (unSignedTxWithFee txBody Nothing)
+  pure $ DefaultTxResponse (unSignedTxWithFee txBody Nothing)
 
-handleClosePool :: Ctx -> ClosePoolParams -> IO ClosePoolResponse
+handleClosePool :: Ctx -> ClosePoolParams -> IO DefaultTxResponse
 handleClosePool ctx ClosePoolParams{..} = do
   txBody <- runTxI ctx (gpUsedAddrs clppGPParams) (gpChangeAddr clppGPParams) (gpCollateral clppGPParams)
               $ closePool 
                   (uniswap clppFactoryAssetClass)
                   (Coin $ assetClassToPlutus clppTokenAAssetClass)
                   (Coin $ assetClassToPlutus clppTokenBAssetClass)
-  pure $ ClosePoolResponse (unSignedTxWithFee txBody Nothing)
+  pure $ DefaultTxResponse (unSignedTxWithFee txBody Nothing)
 
 
 handleListPool :: Ctx -> ListPoolParams -> IO ListPoolResponse
