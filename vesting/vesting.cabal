@@ -59,7 +59,7 @@ library vesting-offchain
     Vesting.Script
   build-depends:
     , base
-    , atlas
+    , atlas-cardano
     , containers
     , vesting:vesting-onchain
 
@@ -71,7 +71,7 @@ executable place-vesting
     -O2 -threaded -rtsopts -with-rtsopts=-T
   build-depends:
     , base
-    , atlas
+    , atlas-cardano
     , text
     , vesting:vesting-offchain
 
@@ -83,5 +83,5 @@ executable retrieve-vesting
     -O2 -threaded -rtsopts -with-rtsopts=-T
   build-depends:
     , base
-    , atlas
+    , atlas-cardano
     , vesting:vesting-offchain

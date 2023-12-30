@@ -118,6 +118,6 @@ tests setup = testGroup "BetRef"
 
 getSlotAndConfig :: Ctx -> IO (GYSlot, GYSlotConfig)
 getSlotAndConfig ctx = do
-  slot <- ctxCurrentSlot ctx
+  slot <- ctxSlotOfCurrentBlock ctx
   sc   <- ctxSlotConfig ctx
   return (slot, sc)

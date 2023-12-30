@@ -31,5 +31,5 @@ main = do
         printf "found %d available vesting(s)\n" $ length vs
         unless (null vs) $ do
             txBody <- runGYTxMonadNode nid providers [beneficiaryAddr] beneficiaryAddr Nothing $ retrieveVestings beneficiaryPkh vs
-            tid     <- gySubmitTx providers $ signTx txBody [skey]
+            tid     <- gySubmitTx providers $ signGYTxBody txBody [skey]
             printf "submitted tx: %s\n" tid

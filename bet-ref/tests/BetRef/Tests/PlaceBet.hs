@@ -96,7 +96,7 @@ multipleBetsTraceCore brp refScript walletBets ws@Wallets{..} = do
           -- need to get previous bet utxo
           void $ runWallet (getWallet ws) $ do
             betRefAddr <- betRefAddress brp
-            [_scriptUtxo@GYUTxO {utxoRef}] <- utxosToList <$> utxosAtAddress betRefAddr
+            [_scriptUtxo@GYUTxO {utxoRef}] <- utxosToList <$> utxosAtAddress betRefAddr Nothing
             void $ placeBetRun refScript brp dat bet (Just utxoRef)
           performBetOperations remWalletBets False
       -- | To sum the bet amount for the corresponding wallet.

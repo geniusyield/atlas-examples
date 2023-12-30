@@ -42,6 +42,6 @@ main = do
             beneficiary
             deadline
             (valueFromLovelace $ toInteger lovelace)
-        tid    <- gySubmitTx providers $ signTx txBody [skey]
+        tid    <- gySubmitTx providers $ signGYTxBody txBody [skey]
         printf "submitted tx: %s\n" tid
 

@@ -64,7 +64,7 @@ library betref-server-lib
     , base
     , aeson
     , betref:betref-onchain
-    , atlas
+    , atlas-cardano
     , swagger2
     , servant-server
     , servant-swagger
@@ -81,7 +81,7 @@ executable betref-server
     , aeson-pretty
     , base
     , bytestring
-    , atlas
+    , atlas-cardano
     , betref:betref-server-lib
     , servant-server
     , transformers
@@ -104,7 +104,7 @@ test-suite betref-tests
     , containers
     , betref:betref-onchain
     , betref:betref-server-lib
-    , atlas
+    , atlas-cardano
     , mtl
     , plutus-simple-model
     , tasty
@@ -121,6 +121,6 @@ test-suite betref-privnet-tests
     , base
     , betref:betref-onchain
     , betref:betref-server-lib
-    , atlas
+    , atlas-cardano
     , tasty
     , tasty-hunit
