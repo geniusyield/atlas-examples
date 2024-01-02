@@ -49,7 +49,7 @@ takeBetsTrace betUntil' betReveal' betStep walletBets answer getTaker mExpectedF
     Just (Just refInput) -> do
       void $ runWallet taker $ do
         betRefAddr <- betRefAddress brp
-        [_scriptUtxo@GYUTxO {utxoRef, utxoValue}] <- utxosToList <$> utxosAtAddress betRefAddr
+        [_scriptUtxo@GYUTxO {utxoRef, utxoValue}] <- utxosToList <$> utxosAtAddress betRefAddr Nothing
         waitUntilSlot $ slotFromApi (fromInteger betReveal')
         case mExpectedFees of
           Just expectedFees ->

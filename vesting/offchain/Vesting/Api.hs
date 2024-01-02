@@ -26,10 +26,10 @@ placeVesting beneficiary deadline value = do
 
 availableVestings :: GYTxQueryMonad m => GYPubKeyHash -> m [(GYTxOutRef, GYTime)]
 availableVestings beneficiary = do
-    slot   <- currentSlot
+    slot   <- slotOfCurrentBlock
     now    <- slotToBeginTime slot
     addr   <- vestingAddress beneficiary
-    utxos  <- utxosAtAddress addr
+    utxos  <- utxosAtAddress addr Nothing
     utxos' <- utxosDatums utxos
     return
         [ (oref, deadline')
@@ -40,7 +40,7 @@ availableVestings beneficiary = do
 
 retrieveVestings :: GYTxQueryMonad m => GYPubKeyHash -> [(GYTxOutRef, GYTime)] -> m (GYTxSkeleton 'PlutusV2)
 retrieveVestings beneficiary orefs = do
-    slot <- currentSlot
+    slot <- slotOfCurrentBlock
     return $ isInvalidBefore slot <> mustBeSignedBy beneficiary <> mconcat
         [ mustHaveInput GYTxIn
             { gyTxInTxOutRef = oref

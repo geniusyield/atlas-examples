@@ -6,15 +6,15 @@ module Vesting.OnChain.Vesting
     ( mkWrappedVestingValidator
     ) where
 
-import           Plutus.V1.Ledger.Interval (contains)
-import           Plutus.V2.Ledger.Api      (BuiltinData, POSIXTime, PubKeyHash,
-                                            ScriptContext (scriptContextTxInfo),
-                                            TxInfo (txInfoValidRange),
-                                            UnsafeFromData (unsafeFromBuiltinData),
-                                            from)
-import           Plutus.V2.Ledger.Contexts (txSignedBy)
-import           PlutusTx.Prelude          (Bool, check, traceIfFalse, ($),
-                                            (&&))
+import           PlutusLedgerApi.V1.Interval (contains, from)
+import           PlutusLedgerApi.V2          (POSIXTime, PubKeyHash)
+import           PlutusLedgerApi.V2.Contexts (ScriptContext (scriptContextTxInfo),
+                                              TxInfo (txInfoValidRange),
+                                              txSignedBy)
+import           PlutusTx                    (BuiltinData,
+                                              UnsafeFromData (unsafeFromBuiltinData))
+import           PlutusTx.Prelude            (Bool, check, traceIfFalse, ($),
+                                              (&&))
 
 ---------------------------------------------------------------------------------------------------
 ----------------------------------- ON-CHAIN / VALIDATOR ------------------------------------------
