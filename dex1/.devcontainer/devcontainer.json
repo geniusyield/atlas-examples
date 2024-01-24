@@ -1,0 +1,18 @@
+{
+	"name":"iog810",
+	"image":"ghcr.io/input-output-hk/devx-devcontainer:x86_64-linux.ghc8107-iog",
+	"customizations":{
+	   "vscode":{
+		  "extensions":[
+			 "haskell.haskell"
+		  ],
+		  "settings":{
+			 "haskell.manageHLS":"PATH"
+		  }
+	   }
+	},
+	"initializeCommand": "ls"
+ 
+ 
+ }
+ 
