@@ -1,5 +1,5 @@
 {
-	"name":"iog810",
+	"name":"iog810-2",
 	"image":"ghcr.io/input-output-hk/devx-devcontainer:x86_64-linux.ghc8107-iog",
 	"customizations":{
 	   "vscode":{
@@ -11,7 +11,7 @@
 		  }
 	   }
 	},
-	"initializeCommand": "ls"
+	"postCreateCommand": "apt update && apt install curl wget -y;cabal update"
  
  
  }
