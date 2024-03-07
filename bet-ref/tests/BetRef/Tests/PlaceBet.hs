@@ -21,7 +21,7 @@ import           GeniusYield.Types
 -- | Our unit tests for placing bet operation
 placeBetTests :: TestTree
 placeBetTests = testGroup "Place Bet"
-    [ testRun "Balance checks after placing first bet" $ firstBetTrace (OracleAnswerDatum 3) (valueFromLovelace 20_000_000) 0_182_969
+    [ testRun "Balance checks after placing first bet" $ firstBetTrace (OracleAnswerDatum 3) (valueFromLovelace 20_000_000) 0_176_941
     , testRun "Balance checks with multiple bets" $ multipleBetsTraceWrapper 400 1_000 (valueFromLovelace 10_000_000) [(w1, OracleAnswerDatum 1, valueFromLovelace 10_000_000), (w2, OracleAnswerDatum 2, valueFromLovelace 20_000_000), (w3, OracleAnswerDatum 3, valueFromLovelace 30_000_000), (w2, OracleAnswerDatum 4, valueFromLovelace 50_000_000), (w4, OracleAnswerDatum 5, valueFromLovelace 65_000_000 <> fakeGold 1_000)]
     , testRun "Not adding atleast bet step amount should fail" $ mustFail . multipleBetsTraceWrapper 400 1_000 (valueFromLovelace 10_000_000) [(w1, OracleAnswerDatum 1, valueFromLovelace 10_000_000), (w2, OracleAnswerDatum 2, valueFromLovelace 20_000_000), (w3, OracleAnswerDatum 3, valueFromLovelace 30_000_000), (w2, OracleAnswerDatum 4, valueFromLovelace 50_000_000), (w4, OracleAnswerDatum 5, valueFromLovelace 55_000_000 <> fakeGold 1_000)]
     ]
