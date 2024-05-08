@@ -2,17 +2,16 @@
 
 module BetRef.Tests.Privnet.Tests (tests) where
 
-import           Test.Tasty                       (TestTree, testGroup)
-import           Test.Tasty.HUnit                 (testCaseSteps)
-
 import           BetRef.Api.Operations
-import           GeniusYield.Imports
-
 import           BetRef.OnChain.BetRef.Compiled
+import           Data.Default                     (def)
+import           GeniusYield.Imports
 import           GeniusYield.Test.Privnet.Asserts
 import           GeniusYield.Test.Privnet.Ctx
 import           GeniusYield.Test.Privnet.Setup
 import           GeniusYield.Types
+import           Test.Tasty                       (TestTree, testGroup)
+import           Test.Tasty.HUnit                 (testCaseSteps)
 
 tests :: IO Setup -> TestTree
 tests setup = testGroup "BetRef"
@@ -22,7 +21,7 @@ tests setup = testGroup "BetRef"
       -- First step: Construct the parameters and obtain validator from it.
       --
       -- Let's define a new User to represent Oracle (not necessary though)
-      oracleUser <- newTempUserCtx ctx (ctxUserF ctx) (valueFromLovelace 20_000_000) False
+      oracleUser <- newTempUserCtx ctx (ctxUserF ctx) (valueFromLovelace 20_000_000) def
       (currentSlot, slotConfig) <- getSlotAndConfig ctx
       let betUntilSlotDelta = 100
           betRevealSlotDelta = 200
@@ -74,7 +73,7 @@ tests setup = testGroup "BetRef"
       -- First step: Construct the parameters and obtain validator from it.
       --
       -- Let's define a new User to represent Oracle (not necessary though)
-      oracleUser <- newTempUserCtx ctx (ctxUserF ctx) (valueFromLovelace 20_000_000) False
+      oracleUser <- newTempUserCtx ctx (ctxUserF ctx) (valueFromLovelace 20_000_000) def
       (currentSlot, slotConfig) <- getSlotAndConfig ctx
       let betUntilSlotDelta = 100
           betRevealSlotDelta = 200
