@@ -39,7 +39,7 @@ takeBetsTrace :: Integer                                            -- ^ slot fo
               -> (Wallets -> Wallet)                                -- ^ Taker
               -> Bool                                               -- ^ To check balance
               -> Wallets -> Run ()  -- Our continuation function
-takeBetsTrace betUntil' betReveal' betStep walletBets answer getTaker checkBalance ws@Wallets{..} = do
+takeBetsTrace betUntil' betReveal' betStep walletBets answer getTaker toCheckBalance ws@Wallets{..} = do
   (brp, refScript) <- computeParamsAndAddRefScript betUntil' betReveal' betStep ws
   multipleBetsTraceCore brp refScript walletBets ws
   -- Now lets take the bet
@@ -51,6 +51,6 @@ takeBetsTrace betUntil' betReveal' betStep walletBets answer getTaker checkBalan
         betRefAddr <- betRefAddress brp
         [_scriptUtxo@GYUTxO {utxoRef, utxoValue}] <- utxosToList <$> utxosAtAddress betRefAddr Nothing
         waitUntilSlot $ slotFromApi (fromInteger betReveal')
-        (if checkBalance then withWalletBalancesCheckSimple [taker := utxoValue] $ do
+        (if toCheckBalance then withWalletBalancesCheckSimple [taker := utxoValue] $ do
             takeBetsRun refScript brp utxoRef refInput else takeBetsRun refScript brp utxoRef refInput)
     _anyOtherMatch -> fail "Couldn't place reference input successfully"
