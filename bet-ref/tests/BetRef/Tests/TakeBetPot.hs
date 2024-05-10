@@ -18,9 +18,9 @@ import           GeniusYield.Types
 -- | Our unit tests for taking the bet pot operation
 takeBetPotTests :: TestTree
 takeBetPotTests = testGroup "Take bet pot"
-    [ testRun "Balance check after taking bet pot" $ takeBetsTrace 400 1_000 (valueFromLovelace 10_000_000) [(w1, OracleAnswerDatum 1, valueFromLovelace 10_000_000), (w2, OracleAnswerDatum 2, valueFromLovelace 20_000_000), (w3, OracleAnswerDatum 3, valueFromLovelace 30_000_000), (w2, OracleAnswerDatum 4, valueFromLovelace 50_000_000), (w4, OracleAnswerDatum 5, valueFromLovelace 65_000_000 <> fakeGold 1_000)] 4 w2 (Just 398_617)
-    , testRun "Must fail if attempt to take is by wrong guesser" $ mustFail . takeBetsTrace 400 1_000 (valueFromLovelace 10_000_000) [(w1, OracleAnswerDatum 1, valueFromLovelace 10_000_000), (w2, OracleAnswerDatum 2, valueFromLovelace 20_000_000), (w3, OracleAnswerDatum 3, valueFromLovelace 30_000_000), (w2, OracleAnswerDatum 4, valueFromLovelace 50_000_000), (w4, OracleAnswerDatum 5, valueFromLovelace 65_000_000 <> fakeGold 1_000)] 5 w2 Nothing
-    , testRun "Must fail even if old guess was closest but updated one is not" $ mustFail . takeBetsTrace 400 1_000 (valueFromLovelace 10_000_000) [(w1, OracleAnswerDatum 1, valueFromLovelace 10_000_000), (w2, OracleAnswerDatum 2, valueFromLovelace 20_000_000), (w3, OracleAnswerDatum 3, valueFromLovelace 30_000_000), (w2, OracleAnswerDatum 4, valueFromLovelace 50_000_000), (w4, OracleAnswerDatum 5, valueFromLovelace 65_000_000 <> fakeGold 1_000)] 2 w2 Nothing
+    [ testRun "Balance check after taking bet pot" $ takeBetsTrace 400 1_000 (valueFromLovelace 10_000_000) [(w1, OracleAnswerDatum 1, valueFromLovelace 10_000_000), (w2, OracleAnswerDatum 2, valueFromLovelace 20_000_000), (w3, OracleAnswerDatum 3, valueFromLovelace 30_000_000), (w2, OracleAnswerDatum 4, valueFromLovelace 50_000_000), (w4, OracleAnswerDatum 5, valueFromLovelace 65_000_000 <> fakeGold 1_000)] 4 w2 True
+    , testRun "Must fail if attempt to take is by wrong guesser" $ mustFail . takeBetsTrace 400 1_000 (valueFromLovelace 10_000_000) [(w1, OracleAnswerDatum 1, valueFromLovelace 10_000_000), (w2, OracleAnswerDatum 2, valueFromLovelace 20_000_000), (w3, OracleAnswerDatum 3, valueFromLovelace 30_000_000), (w2, OracleAnswerDatum 4, valueFromLovelace 50_000_000), (w4, OracleAnswerDatum 5, valueFromLovelace 65_000_000 <> fakeGold 1_000)] 5 w2 False
+    , testRun "Must fail even if old guess was closest but updated one is not" $ mustFail . takeBetsTrace 400 1_000 (valueFromLovelace 10_000_000) [(w1, OracleAnswerDatum 1, valueFromLovelace 10_000_000), (w2, OracleAnswerDatum 2, valueFromLovelace 20_000_000), (w3, OracleAnswerDatum 3, valueFromLovelace 30_000_000), (w2, OracleAnswerDatum 4, valueFromLovelace 50_000_000), (w4, OracleAnswerDatum 5, valueFromLovelace 65_000_000 <> fakeGold 1_000)] 2 w2 False
     ]
 
 -- | Run to call the `takeBets` operation.
@@ -37,9 +37,9 @@ takeBetsTrace :: Integer                                            -- ^ slot fo
               -> [(Wallets -> Wallet, OracleAnswerDatum, GYValue)]  -- ^ List denoting the bets
               -> Integer                                            -- ^ Actual answer
               -> (Wallets -> Wallet)                                -- ^ Taker
-              -> Maybe Integer                                      -- ^ Expected fees
+              -> Bool                                               -- ^ To check balance
               -> Wallets -> Run ()  -- Our continuation function
-takeBetsTrace betUntil' betReveal' betStep walletBets answer getTaker mExpectedFees ws@Wallets{..} = do
+takeBetsTrace betUntil' betReveal' betStep walletBets answer getTaker checkBalance ws@Wallets{..} = do
   (brp, refScript) <- computeParamsAndAddRefScript betUntil' betReveal' betStep ws
   multipleBetsTraceCore brp refScript walletBets ws
   -- Now lets take the bet
@@ -51,9 +51,6 @@ takeBetsTrace betUntil' betReveal' betStep walletBets answer getTaker mExpectedF
         betRefAddr <- betRefAddress brp
         [_scriptUtxo@GYUTxO {utxoRef, utxoValue}] <- utxosToList <$> utxosAtAddress betRefAddr Nothing
         waitUntilSlot $ slotFromApi (fromInteger betReveal')
-        case mExpectedFees of
-          Just expectedFees ->
-            withWalletBalancesCheck [taker := utxoValue <> valueNegate (valueFromLovelace expectedFees)] $ do
-              takeBetsRun refScript brp utxoRef refInput
-          Nothing -> takeBetsRun refScript brp utxoRef refInput
+        (if checkBalance then withWalletBalancesCheckSimple [taker := utxoValue] $ do
+            takeBetsRun refScript brp utxoRef refInput else takeBetsRun refScript brp utxoRef refInput)
     _anyOtherMatch -> fail "Couldn't place reference input successfully"
