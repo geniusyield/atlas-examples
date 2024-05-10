@@ -21,7 +21,7 @@ import           GeniusYield.Types
 -- | Our unit tests for placing bet operation
 placeBetTests :: TestTree
 placeBetTests = testGroup "Place Bet"
-    [ testRun "Balance checks after placing first bet" $ firstBetTrace (OracleAnswerDatum 3) (valueFromLovelace 20_000_000) 0_176_941
+    [ testRun "Balance checks after placing first bet" $ firstBetTrace (OracleAnswerDatum 3) (valueFromLovelace 20_000_000)
     , testRun "Balance checks with multiple bets" $ multipleBetsTraceWrapper 400 1_000 (valueFromLovelace 10_000_000) [(w1, OracleAnswerDatum 1, valueFromLovelace 10_000_000), (w2, OracleAnswerDatum 2, valueFromLovelace 20_000_000), (w3, OracleAnswerDatum 3, valueFromLovelace 30_000_000), (w2, OracleAnswerDatum 4, valueFromLovelace 50_000_000), (w4, OracleAnswerDatum 5, valueFromLovelace 65_000_000 <> fakeGold 1_000)]
     , testRun "Not adding atleast bet step amount should fail" $ mustFail . multipleBetsTraceWrapper 400 1_000 (valueFromLovelace 10_000_000) [(w1, OracleAnswerDatum 1, valueFromLovelace 10_000_000), (w2, OracleAnswerDatum 2, valueFromLovelace 20_000_000), (w3, OracleAnswerDatum 3, valueFromLovelace 30_000_000), (w2, OracleAnswerDatum 4, valueFromLovelace 50_000_000), (w4, OracleAnswerDatum 5, valueFromLovelace 55_000_000 <> fakeGold 1_000)]
     ]
@@ -54,14 +54,13 @@ computeParamsAndAddRefScript betUntil' betReveal' betStep Wallets{..} = do
 -- | Trace for placing the first bet.
 firstBetTrace :: OracleAnswerDatum  -- ^ Guess
               -> GYValue            -- ^ Bet
-              -> Integer            -- ^ Expected fees
               -> Wallets -> Run ()  -- Our continuation function
-firstBetTrace dat bet expectedFees ws@Wallets{..} = do
+firstBetTrace dat bet ws@Wallets{..} = do
   -- First step: Get the required parameters for initializing our parameterized script and add the corresponding reference script
   (brp, refScript) <- computeParamsAndAddRefScript 40 100 (valueFromLovelace 200_000_000) ws
   void $ runWallet w1 $ do  -- following operations are ran by first wallet, `w1`
   -- Second step: Perform the actual run.
-    withWalletBalancesCheck [w1 := valueNegate (valueFromLovelace expectedFees <> bet)] $ do
+    withWalletBalancesCheckSimple [w1 := valueNegate bet] $ do
       placeBetRun refScript brp dat bet Nothing
 
 -- | Trace which allows for multiple bets.

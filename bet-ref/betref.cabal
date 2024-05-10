@@ -85,7 +85,6 @@ executable betref-server
     , betref:betref-server-lib
     , servant-server
     , transformers
-    , wai
     , wai-cors
     , http-types
     , warp
@@ -124,3 +123,4 @@ test-suite betref-privnet-tests
     , atlas-cardano
     , tasty
     , tasty-hunit
+    , data-default
