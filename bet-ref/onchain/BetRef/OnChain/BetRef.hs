@@ -5,6 +5,7 @@
 {-# LANGUAGE NumericUnderscores         #-}
 {-# LANGUAGE OverloadedStrings          #-}
 {-# LANGUAGE ScopedTypeVariables        #-}
+{-# LANGUAGE Strict                     #-}
 {-# LANGUAGE TemplateHaskell            #-}
 
 module BetRef.OnChain.BetRef

@@ -25,14 +25,16 @@ common common
   ghc-options:        -fno-show-valid-hole-fits
 
 common plutus-ghc-options
-  -- so unfoldings are present even when compiled without optmizations
   ghc-options:
-    -fno-ignore-interface-pragmas -fno-omit-interface-pragmas
-    -Wno-partial-type-signatures
-
-  -- expose all unfoldings, so plutustx compiler can do its job
+    -fno-ignore-interface-pragmas
+    -fno-omit-interface-pragmas
+    -fno-full-laziness
+    -fno-spec-constr
+    -fno-specialise
+    -fno-strictness
+    -fno-unbox-strict-fields
+    -fno-unbox-small-strict-fields
   ghc-options:
-    -fexpose-all-unfoldings -fobject-code
     -fplugin-opt PlutusTx.Plugin:defer-errors
 
   -- set target plutus-core version
@@ -50,77 +52,3 @@ library betref-onchain
     , plutus-ledger-api
     , plutus-tx
     , plutus-tx-plugin
-
-library betref-server-lib
-  import:           common
-  hs-source-dirs:   server-lib
-  exposed-modules:
-    BetRef.Api.Api
-    BetRef.Api.BetRef
-    BetRef.Api.Context
-    BetRef.Api.Operations
-    BetRef.Api.Tx
-  build-depends:
-    , base
-    , aeson
-    , betref:betref-onchain
-    , atlas-cardano
-    , swagger2
-    , servant-server
-    , servant-swagger
-    , containers
-    , text
-
-executable betref-server
-  import:           common
-  hs-source-dirs:   server
-  main-is:          server-main.hs
-  ghc-options:
-    -O2 -threaded -rtsopts -with-rtsopts=-T
-  build-depends:
-    , aeson-pretty
-    , base
-    , bytestring
-    , atlas-cardano
-    , betref:betref-server-lib
-    , servant-server
-    , transformers
-    , wai-cors
-    , http-types
-    , warp
-
-test-suite betref-tests
-  import:         common
-  ghc-options:    -threaded -rtsopts
-  type:           exitcode-stdio-1.0
-  main-is:        betref-tests.hs
-  hs-source-dirs: tests
-  other-modules:
-    BetRef.Tests.PlaceBet
-    BetRef.Tests.TakeBetPot
-  build-depends:
-    , base
-    , containers
-    , betref:betref-onchain
-    , betref:betref-server-lib
-    , atlas-cardano
-    , mtl
-    , plutus-simple-model
-    , tasty
-
-test-suite betref-privnet-tests
-  import:         common
-  type:           exitcode-stdio-1.0
-  ghc-options:    -threaded -rtsopts
-  hs-source-dirs: tests-privnet
-  main-is:        betref-privnet-tests.hs
-  other-modules:
-    BetRef.Tests.Privnet.Tests
-  build-depends:
-    , base
-    , betref:betref-onchain
-    , betref:betref-server-lib
-    , atlas-cardano
-    , tasty
-    , tasty-hunit
-    , data-default
