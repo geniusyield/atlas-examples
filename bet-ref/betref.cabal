@@ -103,24 +103,8 @@ test-suite betref-tests
     , containers
     , betref:betref-onchain
     , betref:betref-server-lib
+    , extra
+    , text
     , atlas-cardano
     , mtl
-    , plutus-simple-model
     , tasty
-
-test-suite betref-privnet-tests
-  import:         common
-  type:           exitcode-stdio-1.0
-  ghc-options:    -threaded -rtsopts
-  hs-source-dirs: tests-privnet
-  main-is:        betref-privnet-tests.hs
-  other-modules:
-    BetRef.Tests.Privnet.Tests
-  build-depends:
-    , base
-    , betref:betref-onchain
-    , betref:betref-server-lib
-    , atlas-cardano
-    , tasty
-    , tasty-hunit
-    , data-default
