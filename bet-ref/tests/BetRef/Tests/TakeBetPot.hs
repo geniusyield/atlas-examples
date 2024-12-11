@@ -1,56 +1,159 @@
-module BetRef.Tests.TakeBetPot
-    ( takeBetPotTests
-    ) where
+module BetRef.Tests.TakeBetPot (
+  takeBetPotTests,
+  takeBetPotTestsClb,
+) where
 
-import           Control.Monad.Reader
-import           Test.Tasty                     (TestTree, testGroup)
+import BetRef.Api.Operations
+import BetRef.OnChain.BetRef.Compiled
+import BetRef.Tests.PlaceBet
+import Control.Monad.Except (handleError)
+import Control.Monad.Extra (maybeM)
+import Data.Maybe (listToMaybe)
+import GeniusYield.HTTP.Errors (someBackendError)
+import GeniusYield.Imports
+import GeniusYield.Test.Clb
+import GeniusYield.Test.Privnet.Setup
+import GeniusYield.Test.Utils
+import GeniusYield.TxBuilder
+import GeniusYield.Types
+import Test.Tasty (
+  TestTree,
+  testGroup,
+ )
 
-import           Plutus.Model
-
-import           BetRef.Api.Operations
-import           BetRef.OnChain.BetRef.Compiled
-import           BetRef.Tests.PlaceBet
-
-import           GeniusYield.Test.Utils
-import           GeniusYield.TxBuilder
-import           GeniusYield.Types
-
--- | Our unit tests for taking the bet pot operation
-takeBetPotTests :: TestTree
-takeBetPotTests = testGroup "Take bet pot"
-    [ testRun "Balance check after taking bet pot" $ takeBetsTrace 400 1_000 (valueFromLovelace 10_000_000) [(w1, OracleAnswerDatum 1, valueFromLovelace 10_000_000), (w2, OracleAnswerDatum 2, valueFromLovelace 20_000_000), (w3, OracleAnswerDatum 3, valueFromLovelace 30_000_000), (w2, OracleAnswerDatum 4, valueFromLovelace 50_000_000), (w4, OracleAnswerDatum 5, valueFromLovelace 65_000_000 <> fakeGold 1_000)] 4 w2 True
-    , testRun "Must fail if attempt to take is by wrong guesser" $ mustFail . takeBetsTrace 400 1_000 (valueFromLovelace 10_000_000) [(w1, OracleAnswerDatum 1, valueFromLovelace 10_000_000), (w2, OracleAnswerDatum 2, valueFromLovelace 20_000_000), (w3, OracleAnswerDatum 3, valueFromLovelace 30_000_000), (w2, OracleAnswerDatum 4, valueFromLovelace 50_000_000), (w4, OracleAnswerDatum 5, valueFromLovelace 65_000_000 <> fakeGold 1_000)] 5 w2 False
-    , testRun "Must fail even if old guess was closest but updated one is not" $ mustFail . takeBetsTrace 400 1_000 (valueFromLovelace 10_000_000) [(w1, OracleAnswerDatum 1, valueFromLovelace 10_000_000), (w2, OracleAnswerDatum 2, valueFromLovelace 20_000_000), (w3, OracleAnswerDatum 3, valueFromLovelace 30_000_000), (w2, OracleAnswerDatum 4, valueFromLovelace 50_000_000), (w4, OracleAnswerDatum 5, valueFromLovelace 65_000_000 <> fakeGold 1_000)] 2 w2 False
+takeBetPotTestsClb :: TestTree
+takeBetPotTestsClb =
+  testGroup
+    "Take bet pot"
+    [ mkTestFor "Take bet pot" takeBetsTest
+    , mkTestFor "Take by wrong guesser" $
+        mustFail . wrongGuesserTakeBetsTest
+    , mkTestFor "The first bet matters" $
+        mustFail . badUpdatedGuessTakeBetsTest
     ]
 
--- | Run to call the `takeBets` operation.
-takeBetsRun :: GYTxOutRef -> BetRefParams -> GYTxOutRef -> GYTxOutRef -> GYTxMonadRun GYTxId
-takeBetsRun refScript brp toConsume refInput = do
-  addr <- ownAddress
-  skeleton <- takeBets refScript brp toConsume addr refInput
-  sendSkeleton skeleton
+-- | Our unit tests for taking the bet pot operation
+takeBetPotTests :: Setup -> TestTree
+takeBetPotTests setup =
+  testGroup
+    "Take bet pot"
+    [ mkPrivnetTestFor_ "Take bet pot" takeBetsTest
+    , mkPrivnetTestFor_ "Take by wrong guesser" $
+        mustFailPrivnet . wrongGuesserTakeBetsTest
+    , mkPrivnetTestFor_ "The first bet matters" $
+        mustFailPrivnet . badUpdatedGuessTakeBetsTest
+    ]
+ where
+  mkPrivnetTestFor_ = flip mkPrivnetTestFor setup
+  -- Must fail with script execution error (which is fired in the body error auto balance).
+  mustFailPrivnet =
+    handleError
+      ( \case
+          GYBuildTxException GYBuildTxBodyErrorAutoBalance{} -> pure ()
+          e -> throwError e
+      )
+
+takeBetsTest :: (GYTxGameMonad m) => TestInfo -> m ()
+takeBetsTest TestInfo{..} =
+  mkTakeBetsTest
+    400
+    1_000
+    (valueFromLovelace 10_000_000)
+    [ (w1, OracleAnswerDatum 1, valueFromLovelace 10_000_000)
+    , (w2, OracleAnswerDatum 2, valueFromLovelace 20_000_000)
+    , (w3, OracleAnswerDatum 3, valueFromLovelace 30_000_000)
+    , (w2, OracleAnswerDatum 4, valueFromLovelace 50_000_000)
+    ,
+      ( w4
+      , OracleAnswerDatum 5
+      , valueFromLovelace 65_000_000
+          <> valueSingleton testGoldAsset 1_000
+      )
+    ]
+    4
+    w2
+    testWallets
+
+wrongGuesserTakeBetsTest :: (GYTxGameMonad m) => TestInfo -> m ()
+wrongGuesserTakeBetsTest TestInfo{..} =
+  mkTakeBetsTest
+    400
+    1_000
+    (valueFromLovelace 10_000_000)
+    [ (w1, OracleAnswerDatum 1, valueFromLovelace 10_000_000)
+    , (w2, OracleAnswerDatum 2, valueFromLovelace 20_000_000)
+    , (w3, OracleAnswerDatum 3, valueFromLovelace 30_000_000)
+    , (w2, OracleAnswerDatum 4, valueFromLovelace 50_000_000)
+    ,
+      ( w4
+      , OracleAnswerDatum 5
+      , valueFromLovelace 65_000_000
+          <> valueSingleton testGoldAsset 1_000
+      )
+    ]
+    5
+    w2
+    testWallets
+
+badUpdatedGuessTakeBetsTest :: (GYTxGameMonad m) => TestInfo -> m ()
+badUpdatedGuessTakeBetsTest TestInfo{..} =
+  mkTakeBetsTest
+    400
+    1_000
+    (valueFromLovelace 10_000_000)
+    [ (w1, OracleAnswerDatum 1, valueFromLovelace 10_000_000)
+    , (w2, OracleAnswerDatum 2, valueFromLovelace 20_000_000)
+    , (w3, OracleAnswerDatum 3, valueFromLovelace 30_000_000)
+    , (w2, OracleAnswerDatum 4, valueFromLovelace 50_000_000)
+    ,
+      ( w4
+      , OracleAnswerDatum 5
+      , valueFromLovelace 65_000_000
+          <> valueSingleton testGoldAsset 1_000
+      )
+    ]
+    2
+    w2
+    testWallets
 
 -- | Trace for taking bet pot.
-takeBetsTrace :: Integer                                            -- ^ slot for betUntil
-              -> Integer                                            -- ^ slot for betReveal
-              -> GYValue                                            -- ^ bet step
-              -> [(Wallets -> Wallet, OracleAnswerDatum, GYValue)]  -- ^ List denoting the bets
-              -> Integer                                            -- ^ Actual answer
-              -> (Wallets -> Wallet)                                -- ^ Taker
-              -> Bool                                               -- ^ To check balance
-              -> Wallets -> Run ()  -- Our continuation function
-takeBetsTrace betUntil' betReveal' betStep walletBets answer getTaker toCheckBalance ws@Wallets{..} = do
-  (brp, refScript) <- computeParamsAndAddRefScript betUntil' betReveal' betStep ws
-  multipleBetsTraceCore brp refScript walletBets ws
+mkTakeBetsTest ::
+  (GYTxGameMonad m) =>
+  Integer ->
+  Integer ->
+  GYValue ->
+  [Bet] ->
+  Integer ->
+  -- | Pot taker
+  (Wallets -> User) ->
+  Wallets ->
+  m ()
+mkTakeBetsTest betUntil betReveal betStep walletBets answer getTaker ws@Wallets{..} = do
+  (brp, refScript) <- runDeployScript betUntil betReveal betStep ws
+  runMultipleBets brp refScript walletBets ws
   -- Now lets take the bet
-  mMRef <- runWallet w1 $ addRefInput True (walletAddress w8) (datumFromPlutusData $ OracleAnswerDatum answer)
+  refInput <- asUser w1 $ addRefInput True (userAddr w8) (datumFromPlutusData $ OracleAnswerDatum answer)
   let taker = getTaker ws
-  case mMRef of
-    Just (Just refInput) -> do
-      void $ runWallet taker $ do
-        betRefAddr <- betRefAddress brp
-        [_scriptUtxo@GYUTxO {utxoRef, utxoValue}] <- utxosToList <$> utxosAtAddress betRefAddr Nothing
-        waitUntilSlot $ slotFromApi (fromInteger betReveal')
-        (if toCheckBalance then withWalletBalancesCheckSimple [taker := utxoValue] $ do
-            takeBetsRun refScript brp utxoRef refInput else takeBetsRun refScript brp utxoRef refInput)
-    _anyOtherMatch -> fail "Couldn't place reference input successfully"
+  betRefAddr <- betRefAddress brp
+  GYUTxO{utxoRef, utxoValue} <-
+    head . utxosToList
+      <$> utxosAtAddress betRefAddr Nothing
+  currSlot <- slotToInteger <$> slotOfCurrentBlock
+  let waitUntil = slotFromApi (fromInteger $ currSlot + betReveal)
+  gyLogDebug' "" $ "waiting till slot: " <> show waitUntil
+  waitUntilSlot_ waitUntil
+  withWalletBalancesCheckSimple [taker := utxoValue]
+    . asUser taker
+    . void
+    $ takeBetsRun refScript brp utxoRef refInput
+
+-- | Run to call the `takeBets` operation.
+takeBetsRun :: (GYTxMonad m) => GYTxOutRef -> BetRefParams -> GYTxOutRef -> GYTxOutRef -> m GYTxId
+takeBetsRun refScript brp toConsume refInput = do
+  addr <-
+    maybeM
+      (throwAppError $ someBackendError "No own addresses")
+      pure
+      $ listToMaybe <$> ownAddresses
+  skeleton <- takeBets refScript brp toConsume addr refInput
+  buildTxBody skeleton >>= signAndSubmitConfirmed

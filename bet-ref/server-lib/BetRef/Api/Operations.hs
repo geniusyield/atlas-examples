@@ -1,4 +1,5 @@
 module BetRef.Api.Operations (
+  mkScript,
   betRefValidator',
   betRefAddress,
   placeBet,
@@ -11,6 +12,36 @@ import BetRef.OnChain.BetRef.Compiled
 import GeniusYield.Imports
 import GeniusYield.TxBuilder
 import GeniusYield.Types
+
+{- | Queries the curent slot, calculates parameters and builds
+a script that is ready to be deployed.
+-}
+mkScript ::
+  (GYTxQueryMonad m) =>
+  -- | How many slots betting should be open
+  Integer ->
+  -- | How many slots should pass before oracle reveals answer
+  Integer ->
+  -- | Oracle PKH
+  GYPubKeyHash ->
+  -- | Bet step value
+  GYValue ->
+  m (BetRefParams, GYScript PlutusV2)
+mkScript betUntil betReveal oraclePkh betStep = do
+  currSlot <- slotToInteger <$> slotOfCurrentBlock
+  -- Calculate params for the script
+  let betUntil' = slotFromApi $ fromInteger $ currSlot + betUntil
+  let betReveal' = slotFromApi $ fromInteger $ currSlot + betReveal
+  betUntilTime <- slotToBeginTime betUntil'
+  betRevealTime <- slotToBeginTime betReveal'
+  let params =
+        BetRefParams
+          (pubKeyHashToPlutus oraclePkh)
+          (timeToPlutus betUntilTime)
+          (timeToPlutus betRevealTime)
+          (valueToPlutus betStep)
+  gyLogDebug' "" $ printf "Parameters: %s" (show params)
+  pure (params, validatorToScript $ betRefValidator' params)
 
 -- | Validator in question, obtained after giving required parameters.
 betRefValidator' :: BetRefParams -> GYScript 'PlutusV2
