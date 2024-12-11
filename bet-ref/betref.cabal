@@ -101,11 +101,11 @@ test-suite betref-tests
   build-depends:
     , base
     , containers
+    , clb
     , betref:betref-onchain
     , betref:betref-server-lib
     , atlas-cardano
     , mtl
-    , plutus-simple-model
     , tasty
 
 test-suite betref-privnet-tests

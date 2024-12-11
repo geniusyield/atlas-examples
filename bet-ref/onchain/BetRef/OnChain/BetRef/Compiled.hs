@@ -1,21 +1,24 @@
-{-# LANGUAGE DataKinds         #-}
+-- {-# OPTIONS_GHC -fplugin-opt PlutusTx.Plugin:remove-trace #-}
+{-# LANGUAGE DataKinds #-}
 {-# LANGUAGE OverloadedStrings #-}
-{-# LANGUAGE TemplateHaskell   #-}
+{-# LANGUAGE TemplateHaskell #-}
+{-# OPTIONS_GHC -fplugin-opt PlutusTx.Plugin:target-version=1.0.0 #-}
 
-module BetRef.OnChain.BetRef.Compiled
-    ( betRefValidator
-    , BetRefParams (..)
-    , OracleAnswerDatum (..)
-    , BetRefDatum (..)
-    , BetRefAction (..)
-    ) where
+module BetRef.OnChain.BetRef.Compiled (
+  betRefValidator,
+  BetRefParams (..),
+  OracleAnswerDatum (..),
+  BetRefDatum (..),
+  BetRefAction (..),
+) where
 
-import           PlutusCore.Version    (plcVersion100)
-import qualified PlutusTx
+import PlutusCore.Version (plcVersion100)
+import PlutusTx qualified
 
-import           BetRef.OnChain.BetRef
+import BetRef.OnChain.BetRef
 
--- | Generates validator given params.
+-- Since makeLift doesn't seem to work on BetRefParams. We just convert it to data and apply that instead.
 betRefValidator :: BetRefParams -> PlutusTx.CompiledCode (PlutusTx.BuiltinData -> PlutusTx.BuiltinData -> PlutusTx.BuiltinData -> ())
 betRefValidator betRefParams =
-    $$(PlutusTx.compile [|| mkBetRefValidator||]) `PlutusTx.unsafeApplyCode` PlutusTx.liftCode plcVersion100 betRefParams
+  $$(PlutusTx.compile [||mkBetRefValidator||])
+    `PlutusTx.unsafeApplyCode` PlutusTx.liftCode plcVersion100 (PlutusTx.toBuiltinData betRefParams)
