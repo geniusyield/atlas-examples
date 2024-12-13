@@ -10,16 +10,18 @@ import GeniusYield.Test.Privnet.Setup (cardanoDefaultTestnetOptionsConway, withP
 
 main :: IO ()
 main = do
-    defaultMain $
-        testGroup
-            "Emulator"
-            [ placeBetTestsClb
-            , takeBetPotTestsClb
-            ]
     withPrivnet cardanoDefaultTestnetOptionsConway $ \setup ->
         defaultMain $
             testGroup
-                "Privnet"
-                [ placeBetTests setup
-                , takeBetPotTests setup
+                "BetRef"
+                [ testGroup
+                    "Emulator - CLB"
+                    [ placeBetTestsClb
+                    , takeBetPotTestsClb
+                    ]
+                , testGroup
+                    "Privnet"
+                    [ placeBetTests setup
+                    , takeBetPotTests setup
+                    ]
                 ]
