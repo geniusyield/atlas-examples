@@ -5,5 +5,5 @@ module Vesting.Script (
 import GeniusYield.Types
 import Vesting.OnChain.Vesting.Compiled qualified as OnChain
 
-vestingValidator :: GYPubKeyHash -> GYScript 'PlutusV2
-vestingValidator = validatorFromPlutus . OnChain.vestingValidator . pubKeyHashToPlutus
+vestingValidator :: GYPubKeyHash -> GYScript 'PlutusV3
+vestingValidator = scriptFromPlutus . OnChain.vestingValidator . pubKeyHashToPlutus

@@ -14,7 +14,7 @@ import Vesting.Script (vestingValidator)
 vestingAddress :: (GYTxQueryMonad m) => GYPubKeyHash -> m GYAddress
 vestingAddress = scriptAddress . vestingValidator
 
-placeVesting :: (GYTxQueryMonad m) => GYPubKeyHash -> GYTime -> GYValue -> m (GYTxSkeleton 'PlutusV2)
+placeVesting :: (GYTxQueryMonad m) => GYPubKeyHash -> GYTime -> GYValue -> m (GYTxSkeleton 'PlutusV3)
 placeVesting beneficiary deadline value = do
     addr <- vestingAddress beneficiary
     return $
@@ -40,7 +40,7 @@ availableVestings beneficiary = do
         , now > deadline'
         ]
 
-retrieveVestings :: (GYTxQueryMonad m) => GYPubKeyHash -> [(GYTxOutRef, GYTime)] -> m (GYTxSkeleton 'PlutusV2)
+retrieveVestings :: (GYTxQueryMonad m) => GYPubKeyHash -> [(GYTxOutRef, GYTime)] -> m (GYTxSkeleton 'PlutusV3)
 retrieveVestings beneficiary orefs = do
     slot <- slotOfCurrentBlock
     return $

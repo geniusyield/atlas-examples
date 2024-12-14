@@ -26,7 +26,7 @@ mkScript ::
   GYPubKeyHash ->
   -- | Bet step value
   GYValue ->
-  m (BetRefParams, GYScript PlutusV2)
+  m (BetRefParams, GYScript PlutusV3)
 mkScript betUntil betReveal oraclePkh betStep = do
   currSlot <- slotToInteger <$> slotOfCurrentBlock
   -- Calculate params for the script
@@ -41,11 +41,11 @@ mkScript betUntil betReveal oraclePkh betStep = do
           (timeToPlutus betRevealTime)
           (valueToPlutus betStep)
   gyLogDebug' "" $ printf "Parameters: %s" (show params)
-  pure (params, validatorToScript $ betRefValidator' params)
+  pure (params, betRefValidator' params)
 
 -- | Validator in question, obtained after giving required parameters.
-betRefValidator' :: BetRefParams -> GYScript 'PlutusV2
-betRefValidator' brp = validatorFromPlutus $ betRefValidator brp
+betRefValidator' :: BetRefParams -> GYScript 'PlutusV3
+betRefValidator' brp = scriptFromPlutus $ betRefValidator brp
 
 -- | Address of the validator, given params.
 betRefAddress :: (HasCallStack, GYTxQueryMonad m) => BetRefParams -> m GYAddress
@@ -66,7 +66,7 @@ placeBet ::
   GYAddress ->
   -- | Reference to previous bets UTxO (if any).
   Maybe GYTxOutRef ->
-  m (GYTxSkeleton 'PlutusV2)
+  m (GYTxSkeleton 'PlutusV3)
 placeBet refScript brp guess bet ownAddr mPreviousBetsUtxoRef = do
   gyLogDebug' "" $ printf "ownAddr: %s" (show ownAddr)
   gyLogDebug' "" $ printf "refOut: %s" (show mPreviousBetsUtxoRef)
@@ -121,7 +121,7 @@ takeBets ::
   GYAddress ->
   -- | Oracle reference input.
   GYTxOutRef ->
-  m (GYTxSkeleton 'PlutusV2)
+  m (GYTxSkeleton 'PlutusV3)
 takeBets refScript brp previousBetsUtxoRef ownAddr oracleRefInput = do
   pkh <- addressToPubKeyHash' ownAddr
   previousUtxo <- utxoAtTxOutRef' previousBetsUtxoRef
@@ -134,25 +134,25 @@ takeBets refScript brp previousBetsUtxoRef ownAddr oracleRefInput = do
       <> mustBeSignedBy pkh
 
 -- | Utility function to consume script UTxO.
-input :: BetRefParams -> GYTxOutRef -> GYTxOutRef -> BetRefDatum -> BetRefAction -> GYTxSkeleton 'PlutusV2
+input :: BetRefParams -> GYTxOutRef -> GYTxOutRef -> BetRefDatum -> BetRefAction -> GYTxSkeleton 'PlutusV3
 input brp refScript inputRef dat red =
   mustHaveInput
     GYTxIn
       { gyTxInTxOutRef = inputRef
       , gyTxInWitness =
           GYTxInWitnessScript
-            (GYInReference refScript $ validatorToScript $ betRefValidator' brp)
+            (GYInReference refScript $ betRefValidator' brp)
             (datumFromPlutusData dat)
             (redeemerFromPlutusData red)
       }
 
 -- | Add UTxO to be used as reference input at a given address with given datum.
-addRefInput' :: GYAddress -> OracleAnswerDatum -> GYTxSkeleton 'PlutusV2
+addRefInput' :: GYAddress -> OracleAnswerDatum -> GYTxSkeleton 'PlutusV3
 addRefInput' addr dat =
   mustHaveOutput $ GYTxOut addr mempty (Just (datumFromPlutusData dat, GYTxOutUseInlineDatum)) Nothing
 
 -- Note that the value can be empty as tx building logic would add the needed minimum UTxO ada.
 
 -- | Add Reference Script UTxO.
-addRefScript' :: GYAddress -> GYScript 'PlutusV2 -> GYTxSkeleton 'PlutusV2
-addRefScript' addr script = mustHaveOutput $ GYTxOut addr mempty (Just (datumFromPlutusData (), GYTxOutDontUseInlineDatum)) (Just $ GYPlutusScript $ validatorToScript script)
+addRefScript' :: GYAddress -> GYScript 'PlutusV3 -> GYTxSkeleton 'PlutusV3
+addRefScript' addr script = mustHaveOutput $ GYTxOut addr mempty (Just (datumFromPlutusData (), GYTxOutDontUseInlineDatum)) (Just $ GYPlutusScript script)
