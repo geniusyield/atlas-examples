@@ -19,8 +19,8 @@ module BetRef.OnChain.BetRef (
 import PlutusLedgerApi.V1.Address (toPubKeyHash)
 import PlutusLedgerApi.V1.Interval (contains)
 import PlutusLedgerApi.V1.Value (geq)
-import PlutusLedgerApi.V2
-import PlutusLedgerApi.V2.Contexts (
+import PlutusLedgerApi.V3
+import PlutusLedgerApi.V3.Contexts (
   findDatum,
   findOwnInput,
   getContinuingOutputs,
@@ -48,7 +48,7 @@ data BetRefParams = BetRefParams
   , brpBetStep :: Value
   -- ^ Each newly placed bet must be more than previous bet by `brpBetStep` amount.
   }
-  deriving stock Show
+  deriving stock (Show)
 
 -- PlutusTx.makeLift ''BetRefParams
 PlutusTx.unstableMakeIsData ''BetRefParams
@@ -75,80 +75,81 @@ PlutusTx.unstableMakeIsData ''BetRefAction
 {-# INLINEABLE mkBetRefValidator #-}
 
 -- | Untyped wrapper around `mkBetRefValidator'`.
-mkBetRefValidator :: BuiltinData -> BuiltinData -> BuiltinData -> BuiltinData -> ()
-mkBetRefValidator params dat' red' ctx'
-  | mkBetRefValidator' (unsafeFromBuiltinData params) (unsafeFromBuiltinData dat') (unsafeFromBuiltinData red') (unsafeFromBuiltinData ctx') = ()
+mkBetRefValidator :: BuiltinData -> BuiltinData -> ()
+mkBetRefValidator params ctx'
+  | mkBetRefValidator' (unsafeFromBuiltinData params) (unsafeFromBuiltinData ctx') = ()
   | otherwise = error ()
 
 {-# INLINEABLE mkBetRefValidator' #-}
 
 -- | Core smart contract logic. Read its description from Atlas guide.
-mkBetRefValidator' :: BetRefParams -> BetRefDatum -> BetRefAction -> ScriptContext -> Bool
-mkBetRefValidator' (BetRefParams oraclePkh betUntil betReveal betStep) (BetRefDatum previousGuesses previousBet) brAction ctx =
-  case brAction of
-    Bet guess ->
-      let
-        sOut = case getContinuingOutputs ctx of
-          [sOut'] -> sOut'
-          _anyOtherMatch -> traceError "Expected only one continuing output."
-        outValue = txOutValue sOut
-        -- Using the 'maybe' utility here makes validation fail... for some reason...
-        -- Why is PlutusTx still allowed to exist?
-        inValue = case findOwnInput ctx of
-          Nothing -> traceError "Joever!"
-          Just x -> txOutValue (txInInfoResolved x)
-        -- inValue = txOutValue sIn
-        (guessesOut, betOut) = case outputToDatum sOut of
-          Nothing -> traceError "Could not resolve for script output datum"
-          Just (BetRefDatum guessesOut' betOut') -> (guessesOut', betOut')
-       in
-        traceIfFalse
-          "Must be before `BetUntil` time"
-          (to betUntil `contains` validRange)
-          && traceIfFalse
-            "Guesses update is wrong"
-            ((signerPkh, guess) : previousGuesses == guessesOut)
-          && traceIfFalse
-            "The current bet must be more than the previous bet by atleast `brpBetStep` amount"
-            (outValue `geq` (inValue <> previousBet <> betStep))
-          && traceIfFalse
-            "Out bet is wrong"
-            (inValue == outValue - betOut)
-    Take ->
-      let
-        -- Note that `find` returns the first match. Since we were always prepending, this is valid.
-        Just guess = find ((== signerPkh) . fst) previousGuesses
-        oracleIn = case filter (isNothing . txOutReferenceScript) (txInInfoResolved <$> txInfoReferenceInputs info) of
-          [oracleIn'] -> oracleIn'
-          [] -> traceError "No reference input provided"
-          _anyOtherMatch -> traceError "Expected only one reference input"
-        oracleAnswer = case outputToDatum oracleIn of
-          Nothing -> traceError "Could not resolve for datum"
-          (Just (OracleAnswerDatum oracleAnswer')) -> oracleAnswer'
-        guessDiff = getGuessDiff $ snd guess
-        getGuessDiff (OracleAnswerDatum g) = abs (oracleAnswer - g)
-        -- Unwrapping the 'Maybe' here to extract the 'Just' (and trace error for 'Nothing') kills PlutusTx compilation
-        -- the issue is that GHC will fire the worker wrapper transformation combining this with the equality with 'oraclePkh'
-        -- code down below. Which will cause issues with BuiltinByteString also being unwrapped into primitive pointers.
-        -- See: https://github.com/IntersectMBO/plutus/issues/4193
-        mOracleInPkh = toPubKeyHash (txOutAddress oracleIn)
-       in
-        traceIfFalse
-          "Must be after `RevealTime`"
-          (from betReveal `contains` validRange)
-          && traceIfFalse
-            "Must fully spend Script"
-            (null (getContinuingOutputs ctx))
-          && traceIfFalse
-            "Reference input must be from Oracle address (wrt Payment part)"
-            (mOracleInPkh == Just oraclePkh)
-          && traceIfFalse
-            "Guess is not closest"
-            (all (\pg -> getGuessDiff (snd pg) >= guessDiff) previousGuesses)
+mkBetRefValidator' :: BetRefParams -> ScriptContext -> Bool
+mkBetRefValidator' (BetRefParams oraclePkh betUntil betReveal betStep) ctx@(ScriptContext info red purpose) =
+  let brAction :: BetRefAction = unsafeFromBuiltinData (getRedeemer red)
+      (BetRefDatum previousGuesses previousBet) = case purpose of
+        SpendingScript _ (Just dat) -> unsafeFromBuiltinData (getDatum dat)
+        _anyOther -> traceError "Expected SpendingScript with Just Datum"
+   in case brAction of
+        Bet guess ->
+          let
+            sOut = case getContinuingOutputs ctx of
+              [sOut'] -> sOut'
+              _anyOtherMatch -> traceError "Expected only one continuing output."
+            outValue = txOutValue sOut
+            -- Using the 'maybe' utility here makes validation fail... for some reason...
+            -- Why is PlutusTx still allowed to exist?
+            inValue = case findOwnInput ctx of
+              Nothing -> traceError "Joever!"
+              Just x -> txOutValue (txInInfoResolved x)
+            -- inValue = txOutValue sIn
+            (guessesOut, betOut) = case outputToDatum sOut of
+              Nothing -> traceError "Could not resolve for script output datum"
+              Just (BetRefDatum guessesOut' betOut') -> (guessesOut', betOut')
+           in
+            traceIfFalse
+              "Must be before `BetUntil` time"
+              (to betUntil `contains` validRange)
+              && traceIfFalse
+                "Guesses update is wrong"
+                ((signerPkh, guess) : previousGuesses == guessesOut)
+              && traceIfFalse
+                "The current bet must be more than the previous bet by atleast `brpBetStep` amount"
+                (outValue `geq` (inValue <> previousBet <> betStep))
+              && traceIfFalse
+                "Out bet is wrong"
+                (inValue == outValue - betOut)
+        Take ->
+          let
+            -- Note that `find` returns the first match. Since we were always prepending, this is valid.
+            Just guess = find ((== signerPkh) . fst) previousGuesses
+            oracleIn = case filter (isNothing . txOutReferenceScript) (txInInfoResolved <$> txInfoReferenceInputs info) of
+              [oracleIn'] -> oracleIn'
+              [] -> traceError "No reference input provided"
+              _anyOtherMatch -> traceError "Expected only one reference input"
+            oracleAnswer = case outputToDatum oracleIn of
+              Nothing -> traceError "Could not resolve for datum"
+              (Just (OracleAnswerDatum oracleAnswer')) -> oracleAnswer'
+            guessDiff = getGuessDiff $ snd guess
+            getGuessDiff (OracleAnswerDatum g) = abs (oracleAnswer - g)
+            -- Unwrapping the 'Maybe' here to extract the 'Just' (and trace error for 'Nothing') kills PlutusTx compilation
+            -- the issue is that GHC will fire the worker wrapper transformation combining this with the equality with 'oraclePkh'
+            -- code down below. Which will cause issues with BuiltinByteString also being unwrapped into primitive pointers.
+            -- See: https://github.com/IntersectMBO/plutus/issues/4193
+            mOracleInPkh = toPubKeyHash (txOutAddress oracleIn)
+           in
+            traceIfFalse
+              "Must be after `RevealTime`"
+              (from betReveal `contains` validRange)
+              && traceIfFalse
+                "Must fully spend Script"
+                (null (getContinuingOutputs ctx))
+              && traceIfFalse
+                "Reference input must be from Oracle address (wrt Payment part)"
+                (mOracleInPkh == Just oraclePkh)
+              && traceIfFalse
+                "Guess is not closest"
+                (all (\pg -> getGuessDiff (snd pg) >= guessDiff) previousGuesses)
  where
-  info :: TxInfo
-  info = scriptContextTxInfo ctx
-
   validRange :: POSIXTimeRange
   validRange = txInfoValidRange info
 
@@ -158,7 +159,7 @@ mkBetRefValidator' (BetRefParams oraclePkh betUntil betReveal betStep) (BetRefDa
     [] -> traceError "No signatory"
     _anyOtherMatch -> traceError "Expected only one signatory"
 
-  outputToDatum :: FromData b => TxOut -> Maybe b
+  outputToDatum :: (FromData b) => TxOut -> Maybe b
   outputToDatum o = case txOutDatum o of
     NoOutputDatum -> Nothing
     OutputDatum d -> processDatum d

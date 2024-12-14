@@ -82,7 +82,7 @@ simpleTxTest (testWallets -> Wallets{w1}) = do
       gyLogDebug' "" $ printf "tx submitted, txId: %s" txId
 
 -- Pretend off-chain code written in 'GYTxUserQueryMonad m'
-mkTrivialTx :: (GYTxUserQueryMonad m) => m (GYTxSkeleton 'PlutusV2)
+mkTrivialTx :: (GYTxUserQueryMonad m) => m (GYTxSkeleton 'PlutusV3)
 mkTrivialTx = do
   addr <-
     maybeM

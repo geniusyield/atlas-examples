@@ -149,7 +149,7 @@ handleAddRefScript ctx AddRefScriptParams{..} = do
       pure $
         addRefScript' arsPutAddress validator
   let refs = findRefScriptsInBody txBody
-  outRef <- case Map.lookup (GYPlutusScript (validatorToScript validator)) refs of
+  outRef <- case Map.lookup (GYPlutusScript validator) refs of
     Nothing -> fail "Shouldn't happen: No reference for added Script in body"
     Just ref -> return ref
   pure $ unSignedTxWithFee txBody $ Just outRef
