@@ -56,8 +56,8 @@ takeBetPotTests setup =
 takeBetsTest :: (GYTxGameMonad m) => TestInfo -> m ()
 takeBetsTest TestInfo{..} =
   mkTakeBetsTest
-    400
-    1_000
+    betUntilDelta
+    betRevealDelta
     (valueFromLovelace 10_000_000)
     [ (w1, OracleAnswerDatum 1, valueFromLovelace 10_000_000)
     , (w2, OracleAnswerDatum 2, valueFromLovelace 20_000_000)
@@ -77,8 +77,8 @@ takeBetsTest TestInfo{..} =
 wrongGuesserTakeBetsTest :: (GYTxGameMonad m) => TestInfo -> m ()
 wrongGuesserTakeBetsTest TestInfo{..} =
   mkTakeBetsTest
-    400
-    1_000
+    betUntilDelta
+    betRevealDelta
     (valueFromLovelace 10_000_000)
     [ (w1, OracleAnswerDatum 1, valueFromLovelace 10_000_000)
     , (w2, OracleAnswerDatum 2, valueFromLovelace 20_000_000)
@@ -98,8 +98,8 @@ wrongGuesserTakeBetsTest TestInfo{..} =
 badUpdatedGuessTakeBetsTest :: (GYTxGameMonad m) => TestInfo -> m ()
 badUpdatedGuessTakeBetsTest TestInfo{..} =
   mkTakeBetsTest
-    400
-    1_000
+    betUntilDelta
+    betRevealDelta
     (valueFromLovelace 10_000_000)
     [ (w1, OracleAnswerDatum 1, valueFromLovelace 10_000_000)
     , (w2, OracleAnswerDatum 2, valueFromLovelace 20_000_000)
