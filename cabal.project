@@ -22,8 +22,8 @@ index-state:
 source-repository-package
   type: git
   location: https://github.com/geniusyield/atlas
-  tag: v0.8.0
-  --sha256: sha256-17e9Zbf5prNwmbH/ArgIC7KmSVnub2ziyMWbAvc3eHQ=
+  tag: v0.8.1
+  --sha256: sha256-aPpHuturhSPQrSnnzsPLpTF6xzg3dMpN0Y6s/Qr0lnw=
 
 -- TODO: Default value should be @direct@ in upcoming 3.10 version of cabal, omit this line then.
 test-show-details: direct
