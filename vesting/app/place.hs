@@ -32,9 +32,9 @@ main = do
     (coreCfgFile, skeyFile, beneficiary, deadline, lovelace) <- parseArgs
     printf "configuration file: %s\nsender skey file: %s\nbeneficiary: %s\ndeadline: %s\namount: %d\n" coreCfgFile skeyFile beneficiary deadline lovelace
     coreCfg <- coreConfigIO coreCfgFile
-    skey <- readPaymentSigningKey skeyFile
+    skey <- readSigningKey @'GYKeyRolePayment skeyFile
     let nid = cfgNetworkId coreCfg
-        sender = addressFromPaymentKeyHash nid $ paymentKeyHash $ paymentVerificationKey skey
+        sender = addressFromPaymentKeyHash nid $ verificationKeyHash $ getVerificationKey skey
     withCfgProviders coreCfg "place-vesting" $ \providers -> do
         addr <- runGYTxQueryMonadIO nid providers $ vestingAddress beneficiary
         printf "vesting address: %s\n" $ addressToBech32 addr
