@@ -19,9 +19,9 @@ main = do
     (coreCfgFile, skeyFile) <- parseArgs
     printf "configuration file: %s\nbeneficiary skey file: %s\n" coreCfgFile skeyFile
     coreCfg <- coreConfigIO coreCfgFile
-    skey <- readPaymentSigningKey skeyFile
+    skey <- readSigningKey @'GYKeyRolePayment skeyFile
     let nid = cfgNetworkId coreCfg
-        beneficiaryPkh = paymentKeyHash $ paymentVerificationKey skey
+        beneficiaryPkh = verificationKeyHash $ getVerificationKey skey
         beneficiaryPkh' = toPubKeyHash beneficiaryPkh
         beneficiaryAddr = addressFromPaymentKeyHash nid beneficiaryPkh
     withCfgProviders coreCfg "retrieve-vesting" $ \providers -> do
