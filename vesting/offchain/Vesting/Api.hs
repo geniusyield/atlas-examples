@@ -53,7 +53,7 @@ retrieveVestings beneficiary orefs = do
                         , gyTxInWitness =
                             GYTxInWitnessScript
                                 (GYBuildPlutusScriptInlined $ vestingValidator beneficiary)
-                                (datumFromPlutusData $ timeToPlutus deadline)
+                                (Just $ datumFromPlutusData $ timeToPlutus deadline)
                                 unitRedeemer
                         }
                 | (oref, deadline) <- orefs
