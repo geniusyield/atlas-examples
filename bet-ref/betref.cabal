@@ -62,7 +62,6 @@ library betref-server-lib
     BetRef.Api.Tx
   build-depends:
     , base
-    , aeson
     , betref:betref-onchain
     , atlas-cardano
     , swagger2
